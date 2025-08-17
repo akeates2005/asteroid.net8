@@ -16,6 +16,7 @@ namespace Asteroids
         private Random _random;
         private float _timer;
         private float _changeInterval;
+        private AsteroidShape _shape;
 
         public Asteroid(Vector2 position, Vector2 velocity, AsteroidSize asteroidSize, Random random, int level)
         {
@@ -43,6 +44,8 @@ namespace Asteroids
             float changeIntervalMultiplier = 1 - (level - 1) * 0.1f;
             _changeInterval = (float)(_random.NextDouble() * 5 + 2) * changeIntervalMultiplier;
             _timer = _changeInterval;
+
+            _shape = new AsteroidShape(_random.Next(8, 13), Radius, _random);
         }
 
         public void Update()
@@ -70,7 +73,13 @@ namespace Asteroids
         {
             if (!Active) return;
 
-            Raylib.DrawCircleLines((int)Position.X, (int)Position.Y, Radius, Color.White);
+            // Draw the asteroid as a polygon
+            for (int i = 0; i < _shape.Points.Length; i++)
+            {
+                Vector2 p1 = _shape.Points[i] + Position;
+                Vector2 p2 = _shape.Points[(i + 1) % _shape.Points.Length] + Position;
+                Raylib.DrawLineV(p1, p2, Color.White);
+            }
         }
     }
 }
