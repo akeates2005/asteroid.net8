@@ -82,7 +82,7 @@ namespace Asteroids
                                         asteroids[j].Position,
                                         new Vector2((float)(random.NextDouble() * 4 - 2), (float)(random.NextDouble() * 4 - 2)),
                                         60,
-                                        Color.White
+                                        Theme.ExplosionColor
                                     ));
                                 }
                             }
@@ -119,7 +119,7 @@ namespace Asteroids
                                         asteroids[i].Position,
                                         new Vector2((float)(random.NextDouble() * 4 - 2), (float)(random.NextDouble() * 4 - 2)),
                                         60,
-                                        Color.White
+                                        Theme.ExplosionColor
                                     ));
                                 }
                             }
@@ -163,6 +163,16 @@ namespace Asteroids
                 Raylib.BeginDrawing();
                 Raylib.ClearBackground(Color.Black);
 
+                // Draw grid
+                for (int i = 0; i < screenWidth; i += 20)
+                {
+                    Raylib.DrawLine(i, 0, i, screenHeight, Theme.GridColor);
+                }
+                for (int i = 0; i < screenHeight; i += 20)
+                {
+                    Raylib.DrawLine(0, i, screenWidth, i, Theme.GridColor);
+                }
+
                 if (!gameOver && !levelComplete)
                 {
                     player.Draw();
@@ -182,18 +192,18 @@ namespace Asteroids
                         explosion.Draw();
                     }
 
-                    Raylib.DrawText($"Score: {score}", 10, 10, 20, Color.White);
-                    Raylib.DrawText($"Level: {level}", screenWidth - 100, 10, 20, Color.White);
+                    Raylib.DrawText($"Score: {score}", 10, 10, 20, Theme.TextColor);
+                    Raylib.DrawText($"Level: {level}", screenWidth - 100, 10, 20, Theme.TextColor);
                 }
                 else if (levelComplete)
                 {
-                    Raylib.DrawText($"LEVEL {level} COMPLETE", screenWidth / 2 - 150, screenHeight / 2 - 20, 40, Color.Green);
-                    Raylib.DrawText("PRESS [ENTER] TO START NEXT LEVEL", screenWidth / 2 - 200, screenHeight / 2 + 20, 20, Color.White);
+                    Raylib.DrawText($"LEVEL {level} COMPLETE", screenWidth / 2 - 150, screenHeight / 2 - 20, 40, Theme.LevelCompleteColor);
+                    Raylib.DrawText("PRESS [ENTER] TO START NEXT LEVEL", screenWidth / 2 - 200, screenHeight / 2 + 20, 20, Theme.TextColor);
                 }
                 else
                 {
-                    Raylib.DrawText("GAME OVER", screenWidth / 2 - 100, screenHeight / 2 - 20, 40, Color.Red);
-                    Raylib.DrawText("PRESS [ENTER] TO RESTART", screenWidth / 2 - 150, screenHeight / 2 + 20, 20, Color.White);
+                    Raylib.DrawText("GAME OVER", screenWidth / 2 - 100, screenHeight / 2 - 20, 40, Theme.GameOverColor);
+                    Raylib.DrawText("PRESS [ENTER] TO RESTART", screenWidth / 2 - 150, screenHeight / 2 + 20, 20, Theme.TextColor);
                 }
 
                 Raylib.EndDrawing();

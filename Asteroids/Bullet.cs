@@ -33,7 +33,7 @@ namespace Asteroids
         {
             if (!Active) return;
 
-            Raylib.DrawCircle((int)Position.X, (int)Position.Y, 2, Color.White);
+            Raylib.DrawCircle((int)Position.X, (int)Position.Y, 2, Theme.BulletColor);
         }
     }
 }

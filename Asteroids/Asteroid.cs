@@ -78,7 +78,7 @@ namespace Asteroids
             {
                 Vector2 p1 = _shape.Points[i] + Position;
                 Vector2 p2 = _shape.Points[(i + 1) % _shape.Points.Length] + Position;
-                Raylib.DrawLineV(p1, p2, Color.White);
+                Raylib.DrawLineV(p1, p2, Theme.AsteroidColor);
             }
         }
     }
