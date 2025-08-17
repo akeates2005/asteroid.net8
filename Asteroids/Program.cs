@@ -20,12 +20,14 @@ namespace Asteroids
             List<Bullet> bullets = new List<Bullet>();
             List<Asteroid> asteroids = new List<Asteroid>();
             List<ExplosionParticle> explosions = new List<ExplosionParticle>();
+            Leaderboard leaderboard = new Leaderboard();
 
             Random random = new Random();
             int level = 1;
             int score = 0;
             bool gameOver = false;
             bool levelComplete = false;
+            bool gamePaused = false;
 
             StartLevel(level, asteroids, random, screenWidth, screenHeight, player);
 
@@ -33,7 +35,12 @@ namespace Asteroids
             while (!Raylib.WindowShouldClose())
             {
                 // Update
-                if (!gameOver && !levelComplete)
+                if (Raylib.IsKeyPressed(KeyboardKey.P))
+                {
+                    gamePaused = !gamePaused;
+                }
+
+                if (!gameOver && !levelComplete && !gamePaused)
                 {
                     player.Update();
 
@@ -145,6 +152,7 @@ namespace Asteroids
                     {
                         if (gameOver)
                         {
+                            leaderboard.AddScore(score);
                             level = 1;
                             score = 0;
                             gameOver = false;
@@ -202,8 +210,20 @@ namespace Asteroids
                 }
                 else
                 {
-                    Raylib.DrawText("GAME OVER", screenWidth / 2 - 100, screenHeight / 2 - 20, 40, Theme.GameOverColor);
-                    Raylib.DrawText("PRESS [ENTER] TO RESTART", screenWidth / 2 - 150, screenHeight / 2 + 20, 20, Theme.TextColor);
+                    Raylib.DrawText("GAME OVER", screenWidth / 2 - 100, screenHeight / 2 - 80, 40, Theme.GameOverColor);
+
+                    Raylib.DrawText("LEADERBOARD", screenWidth / 2 - 100, screenHeight / 2 - 20, 20, Theme.TextColor);
+                    for (int i = 0; i < Math.Min(leaderboard.Scores.Count, 5); i++)
+                    {
+                        Raylib.DrawText($"{i + 1}. {leaderboard.Scores[i]}", screenWidth / 2 - 100, screenHeight / 2 + 10 + (i * 20), 20, Theme.TextColor);
+                    }
+
+                    Raylib.DrawText("PRESS [ENTER] TO RESTART", screenWidth / 2 - 150, screenHeight / 2 + 120, 20, Theme.TextColor);
+                }
+
+                if (gamePaused)
+                {
+                    Raylib.DrawText("PAUSED", screenWidth / 2 - 60, screenHeight / 2 - 20, 40, Theme.TextColor);
                 }
 
                 Raylib.EndDrawing();
