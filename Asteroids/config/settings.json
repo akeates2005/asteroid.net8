@@ -1,0 +1,24 @@
+{
+  "graphics": {
+    "fullscreen": false,
+    "vsync": true,
+    "showGrid": true,
+    "showParticles": true,
+    "showFPS": false
+  },
+  "audio": {
+    "masterVolume": 0.7,
+    "sfxVolume": 0.8,
+    "musicVolume": 0.6,
+    "audioEnabled": true
+  },
+  "controls": {
+    "mouseControlEnabled": false,
+    "keyRepeatDelay": 0.1
+  },
+  "gameplay": {
+    "difficulty": "Normal",
+    "showHints": true,
+    "pauseOnFocusLoss": true
+  }
+}
