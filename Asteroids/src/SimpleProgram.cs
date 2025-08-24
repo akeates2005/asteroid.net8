@@ -12,9 +12,13 @@ namespace Asteroids
     {
         private AudioManager? _audioManager;
         private SettingsManager? _settingsManager;
-        private VisualEffectsManager? _visualEffects;
+        private EnhancedVisualEffectsManager? _visualEffects;
         private BulletPool? _bulletPool;
-        private ParticlePool? _explosionPool;
+        private EnhancedParticlePool? _explosionPool;
+        private AnimatedHUD? _animatedHUD;
+        private GraphicsSettings? _graphicsSettings;
+        private GraphicsProfiler? _graphicsProfiler;
+        private AdaptiveGraphicsManager? _adaptiveGraphics;
 
         // 3D Rendering
         private bool _render3D = false;
@@ -54,14 +58,25 @@ namespace Asteroids
             Raylib.InitWindow(GameConstants.SCREEN_WIDTH, GameConstants.SCREEN_HEIGHT, "Asteroids - Enhanced");
             Raylib.SetTargetFPS(GameConstants.TARGET_FPS);
 
+            // Initialize graphics settings first
+            _graphicsSettings = new GraphicsSettings();
+            _graphicsProfiler = new GraphicsProfiler();
+            
             // Initialize managers
             _settingsManager = new SettingsManager();
             _audioManager = new AudioManager();
-            _visualEffects = new VisualEffectsManager();
+            _visualEffects = new EnhancedVisualEffectsManager();
+            _animatedHUD = new AnimatedHUD();
 
-            // Initialize object pools
+            // Initialize adaptive graphics manager
+            _adaptiveGraphics = new AdaptiveGraphicsManager(_graphicsSettings, _graphicsProfiler);
+
+            // Initialize object pools with graphics settings scaling
             _bulletPool = new BulletPool(GameConstants.MAX_BULLETS);
-            _explosionPool = new ParticlePool(GameConstants.MAX_PARTICLES);
+            _explosionPool = new EnhancedParticlePool(_graphicsSettings.MaxParticles);
+            
+            // Initialize dynamic theme
+            DynamicTheme.ResetToLevel(_level);
 
             // Initialize game objects
             _player = new Player(new Vector2(GameConstants.SCREEN_WIDTH / 2, GameConstants.SCREEN_HEIGHT / 2), GameConstants.PLAYER_SIZE);
@@ -107,8 +122,15 @@ namespace Asteroids
         {
             float deltaTime = Raylib.GetFrameTime();
             
+            // Begin frame profiling
+            _graphicsProfiler?.BeginFrame();
+            
+            // Update enhanced systems
+            DynamicTheme.Update(deltaTime);
             if (_audioManager != null) _audioManager.Update();
-            if (_visualEffects != null) _visualEffects.Update();
+            if (_visualEffects != null) _visualEffects.Update(deltaTime);
+            if (_animatedHUD != null) _animatedHUD.Update(deltaTime);
+            if (_adaptiveGraphics != null) _adaptiveGraphics.Update(deltaTime);
 
             // Handle pause toggle
             if (Raylib.IsKeyPressed(KeyboardKey.P))
@@ -146,6 +168,12 @@ namespace Asteroids
                         _level++;
                         _levelComplete = false;
                         
+                        // Update theme for new level
+                        DynamicTheme.UpdateLevel(_level);
+                        
+                        // Level transition effect
+                        _visualEffects?.OnLevelComplete();
+                        
                         // Reset player position and state for new level
                         if (_player != null)
                         {
@@ -159,7 +187,9 @@ namespace Asteroids
                         // Clear any remaining bullets and effects
                         _bulletPool?.Clear();
                         if (_explosions != null) _explosions.Clear();
+                        _explosionPool?.Clear(); // Clear explosion particle pool
                         if (_visualEffects != null) _visualEffects.Clear();
+                        if (_player != null) _player.ClearEngineParticles(); // Clear player engine particles
                         
                         StartLevel(_level);
                     }
@@ -186,11 +216,14 @@ namespace Asteroids
                 _player.IsShieldActive = true;
                 _player.ShieldDuration = GameConstants.MAX_SHIELD_DURATION;
                 if (_audioManager != null) _audioManager.PlaySound("shield", 0.8f);
-                if (_visualEffects != null) _visualEffects.AddFlashEffect(Theme.ShieldColor, 0.3f, 0.2f);
+                _visualEffects?.OnShieldActivated();
             }
 
             // Update bullets through pool
             _bulletPool?.Update();
+            
+            // Update explosion particles through pool
+            _explosionPool?.Update();
 
             // Update asteroids
             foreach (var asteroid in _asteroids)
@@ -238,9 +271,15 @@ namespace Asteroids
                         if (distance <= bullet.Radius + _asteroids[j].Radius)
                         {
                             _bulletPool.DeactivateBullet(bullet);
-                            _asteroids[j].Active = false;
+                            var asteroid = _asteroids[j];
+                            asteroid.Active = false;
                             _score += GameConstants.BULLET_SCORE_VALUE;
-                            CreateExplosionAt(_asteroids[j].Position);
+                            
+                            // Score is updated automatically when _score changes
+                            
+                            // Enhanced explosion effects
+                            _visualEffects?.OnAsteroidDestroyed(asteroid.Position, asteroid.AsteroidSize);
+                            CreateExplosionAt(asteroid.Position);
                             if (_audioManager != null) _audioManager.PlaySound("explosion", 0.8f);
                             
                             // Add small camera shake on asteroid destruction
@@ -270,7 +309,8 @@ namespace Asteroids
                         else
                         {
                             _gameOver = true;
-                            if (_visualEffects != null) _visualEffects.CreateExplosionEffects(_player.Position, 1.0f);
+                            _visualEffects?.OnGameOver();
+                            CreateExplosionAt(_player.Position);
                             if (_audioManager != null) _audioManager.PlaySound("explosion", 1.0f);
                             
                             // Add camera shake on player death
@@ -294,9 +334,15 @@ namespace Asteroids
             if (_bulletPool.SpawnBullet(_player.Position, Vector2.Transform(new Vector2(0, -1), Matrix3x2.CreateRotation(MathF.PI / 180 * _player.Rotation)) * GameConstants.BULLET_SPEED))
             {
                 // Bullet spawned successfully
-
                 if (_audioManager != null) _audioManager.PlaySound("shoot", 0.6f);
-                if (_visualEffects != null) _visualEffects.AddScreenShake(1f, 0.1f);
+                _visualEffects?.OnBulletFired();
+                
+                // Create bullet trail effect
+                if (_graphicsSettings?.EnableParticleTrails == true)
+                {
+                    Vector2 bulletVelocity = Vector2.Transform(new Vector2(0, -1), Matrix3x2.CreateRotation(MathF.PI / 180 * _player.Rotation)) * GameConstants.BULLET_SPEED;
+                    _explosionPool?.CreateBulletTrail(_player.Position, bulletVelocity, DynamicTheme.GetBulletColor());
+                }
             }
         }
 
@@ -304,15 +350,13 @@ namespace Asteroids
         {
             if (_explosionPool == null || _explosions == null || _random == null) return;
 
-            if (_visualEffects != null) _visualEffects.CreateExplosionEffects(position, 0.5f);
-
-            for (int i = 0; i < GameConstants.EXPLOSION_PARTICLE_COUNT; i++)
+            // Create enhanced explosion effects
+            _explosionPool?.CreateExplosionBurst(position, 12, 100.0f);
+            
+            // Also create debris field
+            if (_graphicsSettings?.EnableParticleTrails == true)
             {
-                Vector2 particleVelocity = new Vector2(
-                    (float)(_random.NextDouble() * GameConstants.PARTICLE_VELOCITY_RANGE - GameConstants.PARTICLE_VELOCITY_RANGE/2),
-                    (float)(_random.NextDouble() * GameConstants.PARTICLE_VELOCITY_RANGE - GameConstants.PARTICLE_VELOCITY_RANGE/2)
-                );
-                _explosionPool?.SpawnExplosionParticle(position, particleVelocity, GameConstants.EXPLOSION_PARTICLE_LIFESPAN, Theme.ExplosionColor);
+                _explosionPool?.CreateDebrisField(position, AsteroidSize.Medium);
             }
         }
 
@@ -329,7 +373,7 @@ namespace Asteroids
             }
 
             // Draw grid (2D or 3D based on mode)
-            if (_settingsManager?.Current.Graphics.ShowGrid == true)
+            if (_settingsManager?.Current.Graphics.Basic.ShowGrid == true)
             {
                 if (Renderer3DIntegration.Is3DEnabled)
                 {
@@ -339,11 +383,11 @@ namespace Asteroids
                 {
                     for (int i = 0; i < GameConstants.SCREEN_WIDTH; i += GameConstants.GRID_SIZE)
                     {
-                        Raylib.DrawLine(i, 0, i, GameConstants.SCREEN_HEIGHT, Theme.GridColor);
+                        Raylib.DrawLine(i, 0, i, GameConstants.SCREEN_HEIGHT, DynamicTheme.GetGridColor());
                     }
                     for (int i = 0; i < GameConstants.SCREEN_HEIGHT; i += GameConstants.GRID_SIZE)
                     {
-                        Raylib.DrawLine(0, i, GameConstants.SCREEN_WIDTH, i, Theme.GridColor);
+                        Raylib.DrawLine(0, i, GameConstants.SCREEN_WIDTH, i, DynamicTheme.GetGridColor());
                     }
                 }
             }
@@ -398,11 +442,16 @@ namespace Asteroids
                 }
                 else
                 {
-                    // Render in 2D (original code)
+                    // Render in 2D with performance profiling
                     if (_player != null) _player.Draw();
 
                     // Draw bullets through pool
                     _bulletPool?.Draw();
+
+                    // Begin particle rendering profiling
+                    _graphicsProfiler?.BeginParticleRender();
+                    _explosionPool?.Draw();
+                    _graphicsProfiler?.EndParticleRender(_explosionPool?.GetActiveParticleCount() ?? 0);
 
                     if (_asteroids != null)
                     {
@@ -421,50 +470,64 @@ namespace Asteroids
                     }
                 }
 
-                // Draw UI
-                Raylib.DrawText($"Score: {_score}", GameConstants.UI_PADDING, GameConstants.UI_PADDING, 
-                    GameConstants.FONT_SIZE_MEDIUM, Theme.TextColor);
-                Raylib.DrawText($"Level: {_level}", GameConstants.SCREEN_WIDTH - 100, GameConstants.UI_PADDING, 
-                    GameConstants.FONT_SIZE_MEDIUM, Theme.TextColor);
-
-                if (_player?.IsShieldActive == true)
+                // Begin HUD rendering profiling
+                _graphicsProfiler?.BeginHUDRender();
+                
+                // Draw enhanced animated UI
+                if (_animatedHUD != null && _player != null)
                 {
-                    Raylib.DrawText("SHIELD ACTIVE", GameConstants.SCREEN_WIDTH / 2 - 50, 50, 
-                        GameConstants.FONT_SIZE_SMALL, Theme.ShieldColor);
+                    int lives = 3; // Simplified - could be tracked properly
+                    _animatedHUD.DrawHUD(_player, _level, _score, lives);
                 }
+                else
+                {
+                    // Fallback to static UI with dynamic colors
+                    Raylib.DrawText($"Score: {_score}", GameConstants.UI_PADDING, GameConstants.UI_PADDING, 
+                        GameConstants.FONT_SIZE_MEDIUM, DynamicTheme.GetTextColor());
+                    Raylib.DrawText($"Level: {_level}", GameConstants.SCREEN_WIDTH - 100, GameConstants.UI_PADDING, 
+                        GameConstants.FONT_SIZE_MEDIUM, DynamicTheme.GetTextColor());
+
+                    if (_player?.IsShieldActive == true)
+                    {
+                        Raylib.DrawText("SHIELD ACTIVE", GameConstants.SCREEN_WIDTH / 2 - 50, 50, 
+                            GameConstants.FONT_SIZE_SMALL, DynamicTheme.GetShieldColor());
+                    }
+                }
+                
+                _graphicsProfiler?.EndHUDRender();
             }
             else if (_levelComplete)
             {
                 Raylib.DrawText($"LEVEL {_level} COMPLETE", GameConstants.SCREEN_WIDTH / 2 - 150, GameConstants.SCREEN_HEIGHT / 2 - 20, 
-                    GameConstants.FONT_SIZE_LARGE, Theme.LevelCompleteColor);
+                    GameConstants.FONT_SIZE_LARGE, DynamicTheme.GetLevelCompleteColor());
                 Raylib.DrawText("PRESS [ENTER] TO START NEXT LEVEL", GameConstants.SCREEN_WIDTH / 2 - 200, 
-                    GameConstants.SCREEN_HEIGHT / 2 + 20, GameConstants.FONT_SIZE_MEDIUM, Theme.TextColor);
+                    GameConstants.SCREEN_HEIGHT / 2 + 20, GameConstants.FONT_SIZE_MEDIUM, DynamicTheme.GetTextColor());
             }
             else
             {
                 Raylib.DrawText("GAME OVER", GameConstants.SCREEN_WIDTH / 2 - 100, GameConstants.SCREEN_HEIGHT / 2 - 80, 
-                    GameConstants.FONT_SIZE_LARGE, Theme.GameOverColor);
+                    GameConstants.FONT_SIZE_LARGE, DynamicTheme.GetGameOverColor());
 
                 if (_leaderboard?.Scores != null)
                 {
                     Raylib.DrawText("LEADERBOARD", GameConstants.SCREEN_WIDTH / 2 - 100, GameConstants.SCREEN_HEIGHT / 2 - 20, 
-                        GameConstants.FONT_SIZE_MEDIUM, Theme.TextColor);
+                        GameConstants.FONT_SIZE_MEDIUM, DynamicTheme.GetTextColor());
                     for (int i = 0; i < Math.Min(_leaderboard.Scores.Count, 5); i++)
                     {
                         Raylib.DrawText($"{i + 1}. {_leaderboard.Scores[i]}", 
                             GameConstants.SCREEN_WIDTH / 2 - 100, GameConstants.SCREEN_HEIGHT / 2 + 10 + (i * 20), 
-                            GameConstants.FONT_SIZE_MEDIUM, Theme.TextColor);
+                            GameConstants.FONT_SIZE_MEDIUM, DynamicTheme.GetTextColor());
                     }
                 }
 
                 Raylib.DrawText("PRESS [ENTER] TO RESTART", GameConstants.SCREEN_WIDTH / 2 - 150, 
-                    GameConstants.SCREEN_HEIGHT / 2 + 120, GameConstants.FONT_SIZE_MEDIUM, Theme.TextColor);
+                    GameConstants.SCREEN_HEIGHT / 2 + 120, GameConstants.FONT_SIZE_MEDIUM, DynamicTheme.GetTextColor());
             }
 
             if (_gamePaused)
             {
                 Raylib.DrawText("PAUSED", GameConstants.SCREEN_WIDTH / 2 - 60, GameConstants.SCREEN_HEIGHT / 2 - 20, 
-                    GameConstants.FONT_SIZE_LARGE, Theme.TextColor);
+                    GameConstants.FONT_SIZE_LARGE, DynamicTheme.GetTextColor());
             }
 
             // End 3D rendering if enabled
@@ -473,8 +536,16 @@ namespace Asteroids
                 Renderer3DIntegration.EndFrame();
             }
 
-            // Draw visual effects
-            if (_visualEffects != null) _visualEffects.Draw();
+            // Begin effects rendering profiling
+            _graphicsProfiler?.BeginEffectsRender();
+            
+            // Render screen effects (overlays like flash, fade)
+            _visualEffects?.RenderScreenEffects();
+            
+            _graphicsProfiler?.EndEffectsRender(_visualEffects?.ActiveEffectCount ?? 0);
+            
+            // Draw performance overlay (F12 or when enabled)
+            _graphicsProfiler?.DrawPerformanceOverlay(_graphicsSettings ?? new GraphicsSettings());
 
             // Draw mode indicator and FPS in debug mode
             #if DEBUG
@@ -527,6 +598,12 @@ namespace Asteroids
 
             // Clear bullets from pool
             _bulletPool?.Clear();
+            
+            // Clear explosion particle pool
+            _explosionPool?.Clear();
+            
+            // Clear player engine particles
+            if (_player != null) _player.ClearEngineParticles();
 
             if (_explosions != null)
             {
