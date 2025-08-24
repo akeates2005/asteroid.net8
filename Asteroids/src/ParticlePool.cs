@@ -166,7 +166,7 @@ namespace Asteroids
                     var particle = _activeEngineParticles[i];
                     particle.Update();
                     
-                    if (particle.Lifespan <= 0)
+                    if (particle.Lifespan <= 3.0f) // Remove much earlier - aggressive cleanup
                     {
                         _activeEngineParticles.RemoveAt(i);
                         _engineParticlePool.Return(particle);
@@ -179,7 +179,7 @@ namespace Asteroids
                     var particle = _activeExplosionParticles[i];
                     particle.Update();
                     
-                    if (particle.Lifespan <= 0)
+                    if (particle.Lifespan <= 3.0f) // Remove much earlier - aggressive cleanup
                     {
                         _activeExplosionParticles.RemoveAt(i);
                         _explosionParticlePool.Return(particle);
@@ -264,6 +264,32 @@ namespace Asteroids
             }, "OptimizePools");
         }
 
+        /// <summary>
+        /// Nuclear option - immediately clear all active particles
+        /// </summary>
+        public void ClearAll()
+        {
+            if (_disposed) return;
+
+            ErrorManager.SafeExecute(() =>
+            {
+                // Return all active particles to pools and clear lists
+                foreach (var particle in _activeEngineParticles)
+                {
+                    _engineParticlePool.Return(particle);
+                }
+                _activeEngineParticles.Clear();
+
+                foreach (var particle in _activeExplosionParticles)
+                {
+                    _explosionParticlePool.Return(particle);
+                }
+                _activeExplosionParticles.Clear();
+
+                ErrorManager.LogInfo($"Cleared all particles - removed {_activeEngineParticles.Count + _activeExplosionParticles.Count} active particles");
+            }, "ParticlePool.ClearAll");
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
@@ -300,8 +326,9 @@ namespace Asteroids
 
         public void Update()
         {
-            Position += Velocity;
-            Lifespan -= 1;
+            float deltaTime = Raylib.GetFrameTime();
+            Position += Velocity * deltaTime;
+            Lifespan -= deltaTime * 60.0f; // Convert to delta-time based countdown
             
             // Fade out over time
             if (InitialLifespan > 0)
@@ -313,7 +340,7 @@ namespace Asteroids
 
         public void Draw()
         {
-            if (Lifespan > 0)
+            if (Lifespan > 2.0f && Color.A > 20) // Only draw if significant lifespan and visible
             {
                 Raylib.DrawPixelV(Position, Color);
             }
@@ -365,7 +392,7 @@ namespace Asteroids
 
         public void Draw()
         {
-            if (Lifespan > 0)
+            if (Lifespan > 2.0f && Color.A > 20) // Only draw if significant lifespan and visible
             {
                 Raylib.DrawPixelV(Position, Color);
             }

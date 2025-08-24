@@ -11,7 +11,7 @@ namespace Asteroids
     public class GameSettings
     {
         [JsonPropertyName("graphics")]
-        public GraphicsSettings Graphics { get; set; } = new();
+        public EnhancedGraphicsSettingsWrapper Graphics { get; set; } = new();
 
         [JsonPropertyName("audio")]
         public AudioSettings Audio { get; set; } = new();
@@ -23,7 +23,7 @@ namespace Asteroids
         public GameplaySettings Gameplay { get; set; } = new();
     }
 
-    public class GraphicsSettings
+    public class BasicGraphicsSettings
     {
         [JsonPropertyName("fullscreen")]
         public bool Fullscreen { get; set; } = false;
@@ -39,6 +39,15 @@ namespace Asteroids
 
         [JsonPropertyName("showFPS")]
         public bool ShowFPS { get; set; } = false;
+    }
+    
+    public class EnhancedGraphicsSettingsWrapper
+    {
+        [JsonPropertyName("basic")]
+        public BasicGraphicsSettings Basic { get; set; } = new();
+        
+        [JsonPropertyName("enhanced")]
+        public GraphicsSettings Enhanced { get; set; } = new();
     }
 
     public class AudioSettings
@@ -186,11 +195,25 @@ namespace Asteroids
         /// <summary>
         /// Update specific graphics settings
         /// </summary>
-        public void UpdateGraphicsSettings(GraphicsSettings graphics)
+        public void UpdateGraphicsSettings(EnhancedGraphicsSettingsWrapper graphics)
         {
             if (graphics == null) return;
 
             _currentSettings.Graphics = graphics;
+            ValidateSettings();
+            SaveSettings();
+            
+            SettingsChanged?.Invoke(this, _currentSettings);
+        }
+        
+        /// <summary>
+        /// Update enhanced graphics settings
+        /// </summary>
+        public void UpdateEnhancedGraphicsSettings(GraphicsSettings enhancedGraphics)
+        {
+            if (enhancedGraphics == null) return;
+
+            _currentSettings.Graphics.Enhanced = enhancedGraphics;
             ValidateSettings();
             SaveSettings();
             

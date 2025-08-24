@@ -49,7 +49,7 @@ namespace Asteroids
                 // Create engine particles
                 Vector2 particlePosition = Position + Vector2.Transform(new Vector2(0, Size / 2), Matrix3x2.CreateRotation(MathF.PI / 180 * Rotation));
                 Vector2 particleVelocity = Vector2.Transform(new Vector2((float)(_random.NextDouble() * 2 - 1), 2), Matrix3x2.CreateRotation(MathF.PI / 180 * Rotation));
-                _engineParticles.Add(new EngineParticle(particlePosition, particleVelocity, 20, Theme.EngineColor));
+                _engineParticles.Add(new EngineParticle(particlePosition, particleVelocity, 20, DynamicTheme.GetEngineColor()));
             }
 
             // Update position
@@ -95,13 +95,31 @@ namespace Asteroids
             Vector2 v1 = Position + Vector2.Transform(new Vector2(0, -Size), Matrix3x2.CreateRotation(MathF.PI / 180 * Rotation));
             Vector2 v2 = Position + Vector2.Transform(new Vector2(-Size / 2, Size / 2), Matrix3x2.CreateRotation(MathF.PI / 180 * Rotation));
             Vector2 v3 = Position + Vector2.Transform(new Vector2(Size / 2, Size / 2), Matrix3x2.CreateRotation(MathF.PI / 180 * Rotation));
-            Raylib.DrawTriangleLines(v1, v2, v3, Theme.PlayerColor);
+            // Get player health percentage for color calculation
+            float healthPercent = 1.0f; // Simplified - could be based on shield/damage state
+            Color playerColor = DynamicTheme.GetPlayerColor(healthPercent);
+            Raylib.DrawTriangleLines(v1, v2, v3, playerColor);
 
-            // Draw shield if active
+            // Draw shield if active with pulsing effect
             if (IsShieldActive)
             {
-                Raylib.DrawCircleLines((int)Position.X, (int)Position.Y, Size * 1.5f, Theme.ShieldColor);
+                float shieldAlpha = 0.3f + 0.2f * MathF.Sin((float)Raylib.GetTime() * 8); // Pulsing shield
+                Color shieldColor = DynamicTheme.GetShieldColor(shieldAlpha);
+                Raylib.DrawCircleLines((int)Position.X, (int)Position.Y, Size * 1.5f, shieldColor);
+                
+                // Add inner shield glow
+                Color innerGlow = new Color(shieldColor.R, shieldColor.G, shieldColor.B, (byte)30);
+                Raylib.DrawCircle((int)Position.X, (int)Position.Y, Size * 1.2f, innerGlow);
             }
+        }
+
+        /// <summary>
+        /// Nuclear option - clear all engine particles immediately
+        /// </summary>
+        public void ClearEngineParticles()
+        {
+            _engineParticles.Clear();
+            ErrorManager.LogInfo($"Player: Cleared {_engineParticles.Count} engine particles");
         }
     }
 }

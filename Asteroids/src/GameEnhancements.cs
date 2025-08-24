@@ -60,7 +60,7 @@ namespace Asteroids
         public static List<ExplosionParticle> CreateExplosionEffect(Vector2 position, float intensity, Color baseColor, Random random)
         {
             var particles = new List<ExplosionParticle>();
-            int particleCount = (int)(intensity * 20); // Scale particle count with intensity
+            int particleCount = (int)(intensity * 8); // Reduced particle count to minimize dots
             
             for (int i = 0; i < particleCount; i++)
             {
@@ -74,7 +74,7 @@ namespace Asteroids
                     (float)(random.NextDouble() * 10 - 5)
                 );
                 
-                int lifespan = random.Next(30, 90); // 0.5 to 1.5 seconds at 60 FPS
+                int lifespan = random.Next(5, 15); // 0.08 to 0.25 seconds at 60 FPS
                 
                 // Vary color slightly
                 Color particleColor = new Color(

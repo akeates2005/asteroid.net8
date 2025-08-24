@@ -20,13 +20,14 @@ namespace Asteroids
 
         public void Update()
         {
-            Position += Velocity;
-            Lifespan -= 1;
+            float deltaTime = Raylib.GetFrameTime();
+            Position += Velocity * deltaTime;
+            Lifespan -= deltaTime * 60.0f; // Convert to delta-time based countdown
         }
 
         public void Draw()
         {
-            if (Lifespan > 0)
+            if (Lifespan > 2.0f && Color.A > 20) // Only draw if significant lifespan and visible
             {
                 Raylib.DrawPixelV(Position, Color);
             }
