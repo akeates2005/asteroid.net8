@@ -4,9 +4,9 @@ using Raylib_cs;
 namespace Asteroids
 {
     /// <summary>
-    /// Enhanced explosion particle with pooling support
+    /// Poolable explosion particle with enhanced effects support
     /// </summary>
-    public class EnhancedExplosionParticle : IPoolable
+    public class PoolableExplosionParticle : IPoolable
     {
         public Vector2 Position { get; set; }
         public Vector2 Velocity { get; set; }
@@ -14,12 +14,12 @@ namespace Asteroids
         public Color Color { get; set; }
         public bool IsActive { get; set; }
 
-        public EnhancedExplosionParticle()
+        public PoolableExplosionParticle()
         {
             Reset();
         }
 
-        public EnhancedExplosionParticle(Vector2 position, Vector2 velocity, float lifespan, Color color)
+        public PoolableExplosionParticle(Vector2 position, Vector2 velocity, float lifespan, Color color)
         {
             Position = position;
             Velocity = velocity;

@@ -173,7 +173,7 @@ namespace Asteroids
         }
     }
 
-    public class EnhancedEngineParticle : IPoolable
+    public class AdvancedEngineParticle : IPoolable
     {
         public Vector2 Position { get; set; }
         public Vector2 Velocity { get; set; }
@@ -238,21 +238,21 @@ namespace Asteroids
         }
     }
 
-    public class EnhancedParticlePool : ParticlePool
+    public class AdvancedParticlePool : ParticlePool
     {
         private readonly ObjectPool<TrailParticle> _trailPool;
         private readonly ObjectPool<DebrisParticle> _debrisPool;
-        private readonly ObjectPool<EnhancedEngineParticle> _enginePool;
+        private readonly ObjectPool<AdvancedEngineParticle> _enginePool;
         
         private readonly List<TrailParticle> _activeTrails = new();
         private readonly List<DebrisParticle> _activeDebris = new();
-        private readonly List<EnhancedEngineParticle> _activeEngineParticles = new();
+        private readonly List<AdvancedEngineParticle> _activeEngineParticles = new();
 
-        public EnhancedParticlePool(int maxParticles = 1000) : base(maxParticles)
+        public AdvancedParticlePool(int maxParticles = 1000) : base(maxParticles)
         {
             _trailPool = new ObjectPool<TrailParticle>(maxParticles / 4, () => new TrailParticle());
             _debrisPool = new ObjectPool<DebrisParticle>(maxParticles / 4, () => new DebrisParticle());
-            _enginePool = new ObjectPool<EnhancedEngineParticle>(maxParticles / 2, () => new EnhancedEngineParticle());
+            _enginePool = new ObjectPool<AdvancedEngineParticle>(maxParticles / 2, () => new AdvancedEngineParticle());
         }
 
         public void CreateBulletTrail(Vector2 position, Vector2 velocity, Color color)
@@ -415,12 +415,12 @@ namespace Asteroids
         }
 
         /// <summary>
-        /// Nuclear option - immediately clear all enhanced particles
+        /// Nuclear option - immediately clear all advanced particles
         /// </summary>
-        public void ClearAll()
+        public new void ClearAll()
         {
             Clear(); // Call existing clear method
-            ErrorManager.LogInfo("Enhanced particle pool cleared completely");
+            ErrorManager.LogInfo("Advanced particle pool cleared completely");
         }
 
         private Color GetRandomExplosionColor()

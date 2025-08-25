@@ -8,9 +8,9 @@ namespace Asteroids
         {
             try
             {
-                // For now, use SimpleProgram until Enhanced version is fully ready
-                var simpleProgram = new SimpleProgram();
-                simpleProgram.Run();
+                // Use GameProgram as the main game implementation
+                var gameProgram = new GameProgram();
+                gameProgram.Run();
             }
             catch (Exception ex)
             {

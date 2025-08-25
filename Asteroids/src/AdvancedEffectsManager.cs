@@ -79,7 +79,7 @@ namespace Asteroids
     /// Manages multiple screen effects including shake, flash, fade, and zoom effects.
     /// Provides a centralized system for coordinating visual feedback throughout the game.
     /// </summary>
-    public class EnhancedVisualEffectsManager
+    public class AdvancedEffectsManager
     {
         private readonly List<ScreenEffect> _activeEffects = new();
         private Vector2 _shakeOffset = Vector2.Zero;

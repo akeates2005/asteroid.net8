@@ -6,15 +6,15 @@ using Raylib_cs;
 namespace Asteroids
 {
     /// <summary>
-    /// Simplified program to ensure clean build and run
+    /// Main game program containing the complete Asteroids game implementation
     /// </summary>
-    public class SimpleProgram
+    public class GameProgram
     {
         private AudioManager? _audioManager;
         private SettingsManager? _settingsManager;
-        private EnhancedVisualEffectsManager? _visualEffects;
+        private AdvancedEffectsManager? _visualEffects;
         private BulletPool? _bulletPool;
-        private EnhancedParticlePool? _explosionPool;
+        private AdvancedParticlePool? _explosionPool;
         private AnimatedHUD? _animatedHUD;
         private GraphicsSettings? _graphicsSettings;
         private GraphicsProfiler? _graphicsProfiler;
@@ -52,7 +52,7 @@ namespace Asteroids
 
         private void Initialize()
         {
-            ErrorManager.LogInfo("Initializing simple game");
+            ErrorManager.LogInfo("Initializing game");
 
             // Initialize Raylib
             Raylib.InitWindow(GameConstants.SCREEN_WIDTH, GameConstants.SCREEN_HEIGHT, "Asteroids - Enhanced");
@@ -65,7 +65,7 @@ namespace Asteroids
             // Initialize managers
             _settingsManager = new SettingsManager();
             _audioManager = new AudioManager();
-            _visualEffects = new EnhancedVisualEffectsManager();
+            _visualEffects = new AdvancedEffectsManager();
             _animatedHUD = new AnimatedHUD();
 
             // Initialize adaptive graphics manager
@@ -73,7 +73,7 @@ namespace Asteroids
 
             // Initialize object pools with graphics settings scaling
             _bulletPool = new BulletPool(GameConstants.MAX_BULLETS);
-            _explosionPool = new EnhancedParticlePool(_graphicsSettings.MaxParticles);
+            _explosionPool = new AdvancedParticlePool(_graphicsSettings.MaxParticles);
             
             // Initialize dynamic theme
             DynamicTheme.ResetToLevel(_level);
@@ -99,7 +99,7 @@ namespace Asteroids
             // Initialize game state
             ResetGame();
 
-            ErrorManager.LogInfo("Simple game initialization completed");
+            ErrorManager.LogInfo("Game initialization completed");
         }
 
         private void RunGameLoop()
@@ -653,7 +653,7 @@ namespace Asteroids
         {
             try
             {
-                ErrorManager.LogInfo("Cleaning up simple game");
+                ErrorManager.LogInfo("Cleaning up game");
                 
                 if (_audioManager != null) _audioManager.Dispose();
                 if (_visualEffects != null) _visualEffects.Clear();
@@ -665,7 +665,7 @@ namespace Asteroids
                 Renderer3DIntegration.Cleanup();
                 
                 ErrorManager.CleanupOldLogs();
-                ErrorManager.LogInfo("Simple game cleanup completed");
+                ErrorManager.LogInfo("Game cleanup completed");
             }
             catch (Exception ex)
             {
