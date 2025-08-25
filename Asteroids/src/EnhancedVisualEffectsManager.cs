@@ -5,16 +5,29 @@ using Raylib_cs;
 
 namespace Asteroids
 {
+    /// <summary>
+    /// Defines types of visual screen effects available for game feedback and atmosphere
+    /// </summary>
     public enum ScreenEffectType
     {
+        /// <summary>Screen shaking effect for impacts and explosions</summary>
         Shake,
+        /// <summary>Brief color flash effect for damage or important events</summary>
         Flash,
+        /// <summary>Gradual screen color transition for scene changes</summary>
         Fade,
+        /// <summary>Pulsing scale effect for rhythmic feedback</summary>
         Pulse,
+        /// <summary>Camera zoom effect for dramatic emphasis</summary>
         Zoom,
+        /// <summary>Screen distortion effect for special events</summary>
         Distortion
     }
 
+    /// <summary>
+    /// Represents an individual screen effect with timing, intensity, and easing functions.
+    /// Manages the lifecycle and visual properties of screen-wide visual effects.
+    /// </summary>
     public class ScreenEffect
     {
         public ScreenEffectType Type { get; set; }
@@ -62,6 +75,10 @@ namespace Asteroids
         public static float Bounce(float t) => MathF.Abs(MathF.Sin(t * MathF.PI));
     }
 
+    /// <summary>
+    /// Manages multiple screen effects including shake, flash, fade, and zoom effects.
+    /// Provides a centralized system for coordinating visual feedback throughout the game.
+    /// </summary>
     public class EnhancedVisualEffectsManager
     {
         private readonly List<ScreenEffect> _activeEffects = new();
@@ -71,6 +88,11 @@ namespace Asteroids
         private float _fadeAlpha = 0.0f;
         private readonly Random _random = new();
 
+        /// <summary>
+        /// Updates all active screen effects and applies their cumulative results.
+        /// Should be called once per frame before rendering.
+        /// </summary>
+        /// <param name="deltaTime">Time elapsed since the last frame</param>
         public void Update(float deltaTime)
         {
 
@@ -181,6 +203,12 @@ namespace Asteroids
         }
 
         // Public methods to trigger effects
+        /// <summary>
+        /// Adds a screen shake effect with the specified intensity and duration.
+        /// Creates camera displacement for impact feedback.
+        /// </summary>
+        /// <param name="intensity">Shake intensity (higher values = more displacement)</param>
+        /// <param name="duration">Duration of the effect in seconds</param>
         public void AddScreenShake(float intensity, float duration = 0.2f)
         {
             var effect = new ScreenEffect(ScreenEffectType.Shake, intensity, duration)
@@ -190,6 +218,13 @@ namespace Asteroids
             _activeEffects.Add(effect);
         }
 
+        /// <summary>
+        /// Adds a brief color flash effect over the entire screen.
+        /// Useful for damage indicators or important events.
+        /// </summary>
+        /// <param name="color">Color of the flash effect</param>
+        /// <param name="intensity">Flash opacity intensity (0.0 to 1.0)</param>
+        /// <param name="duration">Duration of the effect in seconds</param>
         public void AddScreenFlash(Color color, float intensity, float duration = 0.1f)
         {
             var effect = new ScreenEffect(ScreenEffectType.Flash, intensity, duration, color)
@@ -226,6 +261,11 @@ namespace Asteroids
             _activeEffects.Add(effect);
         }
 
+        /// <summary>
+        /// Adds a combined hit effect with shake and red flash based on damage amount.
+        /// Provides immediate visual feedback for player damage.
+        /// </summary>
+        /// <param name="damage">Damage multiplier affecting intensity (1.0 = normal damage)</param>
         public void AddHitEffect(float damage = 1.0f)
         {
             // Combine shake and flash for impact
@@ -233,6 +273,12 @@ namespace Asteroids
             AddScreenFlash(new Color(255, 0, 0, 255), damage * 0.3f, 0.1f);
         }
 
+        /// <summary>
+        /// Adds an explosion effect with distance-based intensity calculation.
+        /// Shake intensity decreases based on distance from screen center.
+        /// </summary>
+        /// <param name="position">World position of the explosion</param>
+        /// <param name="size">Size multiplier affecting the intensity (1.0 = normal explosion)</param>
         public void AddExplosionEffect(Vector2 position, float size = 1.0f)
         {
             // Distance-based shake intensity
@@ -279,6 +325,11 @@ namespace Asteroids
         }
 
         // Camera matrix with all effects applied
+        /// <summary>
+        /// Gets the cumulative camera transformation matrix with all active effects applied.
+        /// Use this matrix to transform the camera for rendering with effects.
+        /// </summary>
+        /// <returns>4x4 transformation matrix for camera effects</returns>
         public Matrix4x4 GetCameraMatrix()
         {
             Matrix4x4 transform = Matrix4x4.Identity;
@@ -299,6 +350,10 @@ namespace Asteroids
         }
 
         // Render screen-wide effects (call after all game objects are drawn)
+        /// <summary>
+        /// Renders screen-wide overlay effects like flashes and fades.
+        /// Should be called after all game objects are drawn but before UI.
+        /// </summary>
         public void RenderScreenEffects()
         {
             if (_flashColor.A > 0)

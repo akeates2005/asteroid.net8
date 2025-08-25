@@ -249,13 +249,13 @@ namespace Asteroids
     /// </summary>
     public struct PoolStatistics
     {
-        public string TypeName;
-        public int CurrentPoolSize;
-        public int MaxPoolSize;
-        public int TotalCreated;
-        public int TotalRented;
-        public int TotalReturned;
-        public float HitRatio;
+        public string TypeName { get; set; }
+        public int CurrentPoolSize { get; set; }
+        public int MaxPoolSize { get; set; }
+        public int TotalCreated { get; set; }
+        public int TotalRented { get; set; }
+        public int TotalReturned { get; set; }
+        public float HitRatio { get; set; }
 
         public override string ToString()
         {

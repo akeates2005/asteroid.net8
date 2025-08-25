@@ -79,6 +79,6 @@ namespace Asteroids
 
     public struct RenderStats
     {
-        public int TotalItems;
+        public int TotalItems { get; set; }
     }
 }

@@ -309,11 +309,11 @@ namespace Asteroids
     /// </summary>
     public class PooledEngineParticle : IPoolable
     {
-        public Vector2 Position;
-        public Vector2 Velocity;
-        public float Lifespan;
-        public float InitialLifespan;
-        public Color Color;
+        public Vector2 Position { get; set; }
+        public Vector2 Velocity { get; set; }
+        public float Lifespan { get; set; }
+        public float InitialLifespan { get; set; }
+        public Color Color { get; set; }
 
         public void Initialize(Vector2 position, Vector2 velocity, float lifespan, Color color)
         {
@@ -361,11 +361,11 @@ namespace Asteroids
     /// </summary>
     public class PooledExplosionParticle : IPoolable
     {
-        public Vector2 Position;
-        public Vector2 Velocity;
-        public float Lifespan;
-        public float InitialLifespan;
-        public Color Color;
+        public Vector2 Position { get; set; }
+        public Vector2 Velocity { get; set; }
+        public float Lifespan { get; set; }
+        public float InitialLifespan { get; set; }
+        public Color Color { get; set; }
 
         public void Initialize(Vector2 position, Vector2 velocity, float lifespan, Color color)
         {
@@ -413,12 +413,12 @@ namespace Asteroids
     /// </summary>
     public struct ParticlePoolStatistics
     {
-        public int ActiveEngineParticles;
-        public int ActiveExplosionParticles;
-        public int MaxEngineParticles;
-        public int MaxExplosionParticles;
-        public PoolStatistics EnginePoolStats;
-        public PoolStatistics ExplosionPoolStats;
+        public int ActiveEngineParticles { get; set; }
+        public int ActiveExplosionParticles { get; set; }
+        public int MaxEngineParticles { get; set; }
+        public int MaxExplosionParticles { get; set; }
+        public PoolStatistics EnginePoolStats { get; set; }
+        public PoolStatistics ExplosionPoolStats { get; set; }
 
         public override string ToString()
         {

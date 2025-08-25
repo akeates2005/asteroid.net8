@@ -2,7 +2,7 @@ using System;
 
 namespace Asteroids
 {
-    class Program
+    public class Program
     {
         static void Main(string[] args)
         {

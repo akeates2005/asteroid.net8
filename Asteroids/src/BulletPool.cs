@@ -185,11 +185,11 @@ namespace Asteroids
     /// </summary>
     public class PooledBullet : IPoolable
     {
-        public Vector2 Position;
-        public Vector2 Velocity;
-        public bool Active;
-        public float TimeToLive;
-        public float MaxTimeToLive;
+        public Vector2 Position { get; set; }
+        public Vector2 Velocity { get; set; }
+        public bool Active { get; set; }
+        public float TimeToLive { get; set; }
+        public float MaxTimeToLive { get; set; }
         
         private const float DEFAULT_TTL = 180f; // 3 seconds at 60 FPS
         private const float BULLET_RADIUS = 2f;
@@ -272,9 +272,9 @@ namespace Asteroids
     /// </summary>
     public struct BulletPoolStatistics
     {
-        public int ActiveBullets;
-        public int MaxBullets;
-        public PoolStatistics PoolStats;
+        public int ActiveBullets { get; set; }
+        public int MaxBullets { get; set; }
+        public PoolStatistics PoolStats { get; set; }
 
         public float UtilizationPercentage => MaxBullets > 0 ? (float)ActiveBullets / MaxBullets * 100f : 0f;
 

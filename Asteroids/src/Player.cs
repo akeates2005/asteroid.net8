@@ -4,15 +4,40 @@ using Raylib_cs;
 
 namespace Asteroids
 {
+    /// <summary>
+    /// Represents the player's spaceship with movement, shield mechanics, and engine particle effects.
+    /// Handles input processing, screen wrapping, and collision detection for the main game entity.
+    /// </summary>
     public class Player
     {
-        public Vector2 Position;
-        public Vector2 Velocity;
-        public float Rotation;
-        public float Size;
-        public bool IsShieldActive;
-        public float ShieldDuration;
-        public float ShieldCooldown;
+        /// <summary>
+        /// Current position of the player on the screen
+        /// </summary>
+        public Vector2 Position { get; set; }
+        /// <summary>
+        /// Current velocity vector determining movement direction and speed
+        /// </summary>
+        public Vector2 Velocity { get; set; }
+        /// <summary>
+        /// Current rotation angle in degrees (0 = pointing up)
+        /// </summary>
+        public float Rotation { get; set; }
+        /// <summary>
+        /// Visual size of the player ship for drawing and collision detection
+        /// </summary>
+        public float Size { get; set; }
+        /// <summary>
+        /// Whether the protective shield is currently active
+        /// </summary>
+        public bool IsShieldActive { get; set; }
+        /// <summary>
+        /// Remaining shield duration in frames (decrements while shield is active)
+        /// </summary>
+        public float ShieldDuration { get; set; }
+        /// <summary>
+        /// Remaining cooldown time in frames before shield can be used again
+        /// </summary>
+        public float ShieldCooldown { get; set; }
 
         private const float MaxShieldDuration = 180; // 3 seconds at 60 FPS
         private const float MaxShieldCooldown = 300; // 5 seconds at 60 FPS
@@ -20,6 +45,11 @@ namespace Asteroids
         private List<EngineParticle> _engineParticles = new List<EngineParticle>();
         private Random _random = new Random();
 
+        /// <summary>
+        /// Initializes a new player instance at the specified position with the given size
+        /// </summary>
+        /// <param name="position">Starting position on the screen</param>
+        /// <param name="size">Visual size of the player ship</param>
         public Player(Vector2 position, float size)
         {
             Position = position;
@@ -31,6 +61,10 @@ namespace Asteroids
             ShieldCooldown = 0;
         }
 
+        /// <summary>
+        /// Updates the player state including input handling, movement, shield management, and engine particles.
+        /// Processes keyboard input for rotation and thrust, applies screen wrapping, and manages shield timers.
+        /// </summary>
         public void Update()
         {
             // Handle input
@@ -56,10 +90,10 @@ namespace Asteroids
             Position += Velocity;
 
             // Screen wrapping
-            if (Position.X < 0) Position.X = Raylib.GetScreenWidth();
-            if (Position.X > Raylib.GetScreenWidth()) Position.X = 0;
-            if (Position.Y < 0) Position.Y = Raylib.GetScreenHeight();
-            if (Position.Y > Raylib.GetScreenHeight()) Position.Y = 0;
+            if (Position.X < 0) Position = new Vector2(Raylib.GetScreenWidth(), Position.Y);
+            if (Position.X > Raylib.GetScreenWidth()) Position = new Vector2(0, Position.Y);
+            if (Position.Y < 0) Position = new Vector2(Position.X, Raylib.GetScreenHeight());
+            if (Position.Y > Raylib.GetScreenHeight()) Position = new Vector2(Position.X, 0);
 
             // Update engine particles
             foreach (var particle in _engineParticles)
@@ -84,6 +118,10 @@ namespace Asteroids
             }
         }
 
+        /// <summary>
+        /// Renders the player ship as a triangle with engine particles and shield effects.
+        /// Draws engine particles, the triangular ship with dynamic coloring, and shield visual effects when active.
+        /// </summary>
         public void Draw()
         {
             // Draw engine particles
