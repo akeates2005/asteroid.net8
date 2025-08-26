@@ -27,7 +27,10 @@ namespace Asteroids
         private List<AsteroidSpatialEntity>? _asteroidEntities;
         private List<BulletSpatialEntity>? _bulletEntities;
 
-        // 3D Rendering
+        // Enhanced Rendering System
+        private IRenderer? _renderer;
+        private LODManager? _lodManager;
+        private ProceduralAsteroidGenerator? _asteroidGenerator;
         private bool _render3D = false;
 
         private Player? _player;
@@ -78,6 +81,21 @@ namespace Asteroids
             // Initialize adaptive graphics manager
             _adaptiveGraphics = new AdaptiveGraphicsManager(_graphicsSettings, _graphicsProfiler);
 
+            // Initialize LOD manager for performance optimization
+            _lodManager = new LODManager(_graphicsProfiler);
+
+            // Initialize procedural asteroid generator
+            _asteroidGenerator = new ProceduralAsteroidGenerator();
+
+            // Initialize renderer using factory pattern
+            _renderer = RendererFactory.CreateRenderer(_graphicsSettings);
+            
+            if (!_renderer.Initialize())
+            {
+                ErrorManager.LogError("Failed to initialize renderer");
+                throw new InvalidOperationException("Renderer initialization failed");
+            }
+
             // Initialize object pools with graphics settings scaling
             _bulletPool = new BulletPool(GameConstants.MAX_BULLETS);
             _explosionPool = new AdvancedParticlePool(_graphicsSettings.MaxParticles);
@@ -98,15 +116,15 @@ namespace Asteroids
             _leaderboard = new Leaderboard();
             _random = new Random();
 
-            // Initialize 3D rendering
+            // 3D rendering is now handled by the IRenderer abstraction
             if (Renderer3DIntegration.Initialize())
             {
                 _render3D = true;
-                ErrorManager.LogInfo("3D rendering enabled");
+                ErrorManager.LogInfo("3D rendering enabled via IRenderer");
             }
             else
             {
-                ErrorManager.LogInfo("3D rendering disabled, using 2D mode");
+                ErrorManager.LogInfo("3D rendering disabled, using 2D mode via IRenderer");
             }
 
             // Initialize game state
@@ -154,13 +172,13 @@ namespace Asteroids
             // Handle 3D toggle
             if (Raylib.IsKeyPressed(KeyboardKey.F3))
             {
-                Renderer3DIntegration.Toggle3DMode();
+                Renderer3DIntegration.Toggle3DMode(); // TODO: Integrate with IRenderer
             }
 
             // Handle camera controls in 3D mode
             if (Renderer3DIntegration.Is3DEnabled)
             {
-                Renderer3DIntegration.HandleCameraInput();
+                Renderer3DIntegration.HandleCameraInput(); // TODO: Integrate with IRenderer
             }
 
             if (!_gameOver && !_levelComplete && !_gamePaused)
@@ -417,109 +435,97 @@ namespace Asteroids
             Raylib.BeginDrawing();
             Raylib.ClearBackground(Color.Black);
 
-            // Begin 3D rendering if enabled
+            // Update LOD manager
+            float deltaTime = Raylib.GetFrameTime();
+            _lodManager?.Update(deltaTime);
+            
+            // Begin frame rendering via IRenderer
+            _renderer?.BeginFrame();
+
+            // Begin 3D rendering if enabled (legacy support)
             if (Renderer3DIntegration.Is3DEnabled && _player != null)
             {
-                float deltaTime = Raylib.GetFrameTime();
                 Renderer3DIntegration.BeginFrame(_player.Position, _player.Velocity, deltaTime);
             }
 
-            // Draw grid (2D or 3D based on mode)
+            // Draw grid via IRenderer abstraction
             if (_settingsManager?.Current.Graphics.Basic.ShowGrid == true)
             {
-                if (Renderer3DIntegration.Is3DEnabled)
-                {
-                    Renderer3DIntegration.RenderGrid(true);
-                }
-                else
-                {
-                    for (int i = 0; i < GameConstants.SCREEN_WIDTH; i += GameConstants.GRID_SIZE)
-                    {
-                        Raylib.DrawLine(i, 0, i, GameConstants.SCREEN_HEIGHT, DynamicTheme.GetGridColor());
-                    }
-                    for (int i = 0; i < GameConstants.SCREEN_HEIGHT; i += GameConstants.GRID_SIZE)
-                    {
-                        Raylib.DrawLine(0, i, GameConstants.SCREEN_WIDTH, i, DynamicTheme.GetGridColor());
-                    }
-                }
+                _renderer?.RenderGrid(true, DynamicTheme.GetGridColor());
             }
 
             if (!_gameOver && !_levelComplete)
             {
-                // Draw game objects (3D or 2D based on mode)
-                if (Renderer3DIntegration.Is3DEnabled)
+                // Draw game objects using IRenderer with LOD support
+                
+                // Render player
+                if (_player != null) 
                 {
-                    // Render in 3D
-                    if (_player != null) 
-                    {
-                        Renderer3DIntegration.RenderPlayer(_player.Position, _player.Rotation, 
-                            Theme.PlayerColor, _player.IsShieldActive);
-                    }
+                    _renderer?.RenderPlayer(_player.Position, _player.Rotation, 
+                        Theme.PlayerColor, _player.IsShieldActive);
+                        
+                    // Render player's engine particles (thrust trail) using legacy rendering
+                    // This ensures thrust trails work until we fully integrate particle rendering into IRenderer
+                    _player.DrawEngineParticles();
+                }
 
-                    if (_bulletPool != null)
+                // Render bullets with culling
+                if (_bulletPool != null)
+                {
+                    var activeBullets = _bulletPool.GetActiveBullets();
+                    foreach (var bullet in activeBullets)
                     {
-                        var activeBullets = _bulletPool.GetActiveBullets();
-                        foreach (var bullet in activeBullets)
+                        if (bullet.Active && (_lodManager?.ShouldRender(bullet.Position, GameConstants.BULLET_RADIUS) ?? true))
                         {
-                            if (bullet.Active) 
-                            {
-                                Renderer3DIntegration.RenderBullet(bullet.Position, Theme.BulletColor);
-                            }
+                            _renderer?.RenderBullet(bullet.Position, Theme.BulletColor);
                         }
                     }
+                }
 
-                    if (_asteroids != null)
+                // Render asteroids with LOD support
+                if (_asteroids != null)
+                {
+                    foreach (var asteroid in _asteroids)
                     {
-                        foreach (var asteroid in _asteroids)
+                        if (asteroid.Active && (_lodManager?.ShouldRender(asteroid.Position, asteroid.Radius) ?? true))
                         {
-                            if (asteroid.Active) 
-                            {
-                                Renderer3DIntegration.RenderAsteroid(asteroid.Position, asteroid.Radius, 
-                                    Theme.AsteroidColor, asteroid.GetHashCode());
-                            }
+                            int lodLevel = _lodManager?.CalculateAsteroidLOD(asteroid.Position, asteroid.Radius) ?? 0;
+                            _renderer?.RenderAsteroid(asteroid.Position, asteroid.Radius, 
+                                Theme.AsteroidColor, asteroid.GetHashCode(), lodLevel);
                         }
                     }
+                }
 
-                    if (_explosions != null)
+                // Render explosions with culling
+                if (_explosions != null)
+                {
+                    foreach (var explosion in _explosions)
                     {
-                        foreach (var explosion in _explosions)
+                        if (explosion.IsActive)
                         {
-                            if (explosion.IsActive)
+                            float explosionRadius = GameConstants.EXPLOSION_MAX_RADIUS * (explosion.Lifespan / (float)GameConstants.EXPLOSION_PARTICLE_LIFESPAN);
+                            if (_lodManager?.ShouldRender(explosion.Position, explosionRadius) ?? true)
                             {
                                 float intensity = explosion.Lifespan / (float)GameConstants.EXPLOSION_PARTICLE_LIFESPAN;
-                                Renderer3DIntegration.RenderExplosion(explosion.Position, intensity, explosion.Color);
+                                _renderer?.RenderExplosion(explosion.Position, intensity, explosion.Color);
                             }
                         }
                     }
                 }
-                else
+                
+                // Legacy 3D rendering (for compatibility during transition)
+                if (Renderer3DIntegration.Is3DEnabled)
                 {
-                    // Render in 2D with performance profiling
-                    if (_player != null) _player.Draw();
-
-                    // Draw bullets through pool
-                    _bulletPool?.Draw();
-
+                    // Keep original rendering as fallback
+                }
+                
+                // Legacy 2D rendering for particle effects (temporary during transition)
+                if (!Renderer3DIntegration.Is3DEnabled)
+                {
                     // Begin particle rendering profiling
                     _graphicsProfiler?.BeginParticleRender();
                     _explosionPool?.Draw();
                     _graphicsProfiler?.EndParticleRender(_explosionPool?.GetActiveParticleCount() ?? 0);
-
-                    if (_asteroids != null)
-                    {
-                        foreach (var asteroid in _asteroids)
-                        {
-                            if (asteroid.Active) asteroid.Draw();
-                        }
-                    }
-
-                    if (_explosions != null)
-                    {
-                        foreach (var explosion in _explosions)
-                        {
-                            explosion.Draw();
-                        }
-                    }
                 }
 
                 // Begin HUD rendering profiling
@@ -582,7 +588,10 @@ namespace Asteroids
                     GameConstants.FONT_SIZE_LARGE, DynamicTheme.GetTextColor());
             }
 
-            // End 3D rendering if enabled
+            // End frame rendering via IRenderer
+            _renderer?.EndFrame();
+            
+            // End 3D rendering if enabled (legacy support)
             if (Renderer3DIntegration.Is3DEnabled)
             {
                 Renderer3DIntegration.EndFrame();
@@ -599,15 +608,28 @@ namespace Asteroids
             // Draw performance overlay (F12 or when enabled)
             _graphicsProfiler?.DrawPerformanceOverlay(_graphicsSettings ?? new GraphicsSettings());
 
-            // Draw mode indicator and FPS in debug mode
+            // Draw enhanced performance info in debug mode
             #if DEBUG
+            var renderStats = _renderer?.GetRenderStats() ?? new RenderStats { RenderMode = "Unknown" };
             string mode = Renderer3DIntegration.Is3DEnabled ? "3D" : "2D";
-            Raylib.DrawText($"FPS: {Raylib.GetFPS()} | Mode: {mode} | F3: Toggle 3D", 10, GameConstants.SCREEN_HEIGHT - 30, 16, Color.Green);
+            Raylib.DrawText($"FPS: {Raylib.GetFPS()} | Mode: {renderStats.RenderMode} | F3: Toggle 3D", 10, GameConstants.SCREEN_HEIGHT - 30, 16, Color.Green);
             
-            if (Renderer3DIntegration.Is3DEnabled)
+            // Show LOD and culling stats
+            if (_lodManager != null)
             {
-                var stats = Renderer3DIntegration.GetRenderStats();
-                Raylib.DrawText($"3D Objects: {stats.TotalItems}", 10, GameConstants.SCREEN_HEIGHT - 50, 14, Color.Yellow);
+                var lodStats = _lodManager.GetStats();
+                Raylib.DrawText($"Rendered: {renderStats.RenderedItems}/{renderStats.TotalItems} | Culled: {renderStats.CulledItems} | LOD Bias: {lodStats.PerformanceLODBias}", 
+                    10, GameConstants.SCREEN_HEIGHT - 50, 14, Color.Yellow);
+                Raylib.DrawText($"Detail: H{lodStats.HighDetailObjects} M{lodStats.MediumDetailObjects} L{lodStats.LowDetailObjects}", 
+                    10, GameConstants.SCREEN_HEIGHT - 70, 12, Color.SkyBlue);
+                    
+                // Show procedural asteroid stats
+                if (_asteroidGenerator != null)
+                {
+                    var asteroidStats = _asteroidGenerator.GetStats();
+                    Raylib.DrawText($"Cached Meshes: {asteroidStats.CachedMeshes} | Memory: {asteroidStats.MemoryUsageEstimate / 1024}KB", 
+                        10, GameConstants.SCREEN_HEIGHT - 90, 12, Color.Lime);
+                }
             }
             #endif
 
@@ -713,7 +735,11 @@ namespace Asteroids
                 if (_explosionPool != null) _explosionPool.Clear();
                 if (_settingsManager != null) _settingsManager.SaveSettings();
                 
-                // Cleanup 3D rendering
+                // Cleanup enhanced rendering system
+                _renderer?.Cleanup();
+                _asteroidGenerator?.ClearCache();
+                
+                // Cleanup 3D rendering (legacy support)
                 Renderer3DIntegration.Cleanup();
                 
                 ErrorManager.CleanupOldLogs();

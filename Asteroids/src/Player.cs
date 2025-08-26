@@ -152,6 +152,18 @@ namespace Asteroids
         }
 
         /// <summary>
+        /// Draw only the engine particles (thrust trail) without drawing the player ship
+        /// </summary>
+        public void DrawEngineParticles()
+        {
+            // Draw engine particles
+            foreach (var particle in _engineParticles)
+            {
+                particle.Draw();
+            }
+        }
+        
+        /// <summary>
         /// Nuclear option - clear all engine particles immediately
         /// </summary>
         public void ClearEngineParticles()
