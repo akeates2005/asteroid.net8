@@ -7,6 +7,7 @@ namespace Asteroids
 {
     /// <summary>
     /// Main game program containing the complete Asteroids game implementation
+    /// Enhanced with spatial partitioning for O(n+k) collision detection
     /// </summary>
     public class GameProgram
     {
@@ -19,6 +20,12 @@ namespace Asteroids
         private GraphicsSettings? _graphicsSettings;
         private GraphicsProfiler? _graphicsProfiler;
         private AdaptiveGraphicsManager? _adaptiveGraphics;
+
+        // Spatial Partitioning System for enhanced collision detection
+        private SpatialGrid? _spatialGrid;
+        private PlayerSpatialEntity? _playerEntity;
+        private List<AsteroidSpatialEntity>? _asteroidEntities;
+        private List<BulletSpatialEntity>? _bulletEntities;
 
         // 3D Rendering
         private bool _render3D = false;
@@ -78,8 +85,14 @@ namespace Asteroids
             // Initialize dynamic theme
             DynamicTheme.ResetToLevel(_level);
 
+            // Initialize spatial partitioning system
+            _spatialGrid = new SpatialGrid(GameConstants.SPATIAL_GRID_CELL_SIZE);
+            _asteroidEntities = new List<AsteroidSpatialEntity>();
+            _bulletEntities = new List<BulletSpatialEntity>();
+
             // Initialize game objects
             _player = new Player(new Vector2(GameConstants.SCREEN_WIDTH / 2, GameConstants.SCREEN_HEIGHT / 2), GameConstants.PLAYER_SIZE);
+            _playerEntity = new PlayerSpatialEntity(_player);
             _asteroids = new List<Asteroid>();
             _explosions = new List<ExplosionParticle>();
             _leaderboard = new Leaderboard();
@@ -255,27 +268,60 @@ namespace Asteroids
 
         private void CheckCollisions()
         {
-            if (_player == null || _bulletPool == null || _asteroids == null) return;
+            if (_player == null || _bulletPool == null || _asteroids == null || _spatialGrid == null ||
+                _playerEntity == null || _asteroidEntities == null || _bulletEntities == null) return;
 
-            // Get active bullets from pool
+            // Clear and repopulate spatial grid
+            _spatialGrid.Clear();
+
+            // Add player to spatial grid
+            _spatialGrid.Insert(_playerEntity);
+
+            // Update and add active asteroids to spatial grid
+            _asteroidEntities.Clear();
+            foreach (var asteroid in _asteroids)
+            {
+                if (asteroid.Active)
+                {
+                    var asteroidEntity = new AsteroidSpatialEntity(asteroid);
+                    _asteroidEntities.Add(asteroidEntity);
+                    _spatialGrid.Insert(asteroidEntity);
+                }
+            }
+
+            // Update and add active bullets to spatial grid
+            _bulletEntities.Clear();
             var activeBullets = _bulletPool.GetActiveBullets();
-
-            // Bullet-asteroid collisions
             foreach (var bullet in activeBullets)
             {
-                for (int j = _asteroids.Count - 1; j >= 0; j--)
+                if (bullet.Active)
                 {
-                    if (bullet.Active && _asteroids[j].Active)
+                    var bulletEntity = new BulletSpatialEntity((PooledBullet)bullet);
+                    _bulletEntities.Add(bulletEntity);
+                    _spatialGrid.Insert(bulletEntity);
+                }
+            }
+
+            // Bullet-asteroid collisions using spatial partitioning
+            foreach (var bulletEntity in _bulletEntities)
+            {
+                var bullet = bulletEntity.GetBullet();
+                if (!bullet.Active) continue;
+
+                var nearbyEntities = _spatialGrid.Query(bullet.Position, GameConstants.BULLET_RADIUS);
+                foreach (var entity in nearbyEntities)
+                {
+                    if (entity is AsteroidSpatialEntity asteroidEntity)
                     {
-                        float distance = Vector2.Distance(bullet.Position, _asteroids[j].Position);
-                        if (distance <= bullet.Radius + _asteroids[j].Radius)
+                        var asteroid = asteroidEntity.GetAsteroid();
+                        if (!asteroid.Active) continue;
+
+                        float distance = Vector2.Distance(bullet.Position, asteroid.Position);
+                        if (distance <= GameConstants.BULLET_RADIUS + asteroid.Radius)
                         {
-                            _bulletPool.DeactivateBullet(bullet);
-                            var asteroid = _asteroids[j];
+                            _bulletPool.DeactivateBullet((PooledBullet)bullet);
                             asteroid.Active = false;
                             _score += GameConstants.BULLET_SCORE_VALUE;
-                            
-                            // Score is updated automatically when _score changes
                             
                             // Enhanced explosion effects
                             _visualEffects?.OnAsteroidDestroyed(asteroid.Position, asteroid.AsteroidSize);
@@ -287,16 +333,21 @@ namespace Asteroids
                             {
                                 Renderer3DIntegration.AddCameraShake(1f, 0.2f);
                             }
+                            break; // Bullet can only hit one asteroid
                         }
                     }
                 }
             }
 
-            // Player-asteroid collisions
-            foreach (var asteroid in _asteroids)
+            // Player-asteroid collisions using spatial partitioning
+            var nearbyPlayerEntities = _spatialGrid.Query(_player.Position, _player.Size / 2);
+            foreach (var entity in nearbyPlayerEntities)
             {
-                if (asteroid.Active)
+                if (entity is AsteroidSpatialEntity asteroidEntity)
                 {
+                    var asteroid = asteroidEntity.GetAsteroid();
+                    if (!asteroid.Active) continue;
+
                     float distance = Vector2.Distance(_player.Position, asteroid.Position);
                     if (distance <= _player.Size / 2 + asteroid.Radius)
                     {
@@ -319,6 +370,7 @@ namespace Asteroids
                                 Renderer3DIntegration.AddCameraShake(5f, 1f);
                             }
                         }
+                        break; // Player collision processed
                     }
                 }
             }
