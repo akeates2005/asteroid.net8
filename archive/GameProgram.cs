@@ -331,8 +331,7 @@ namespace Asteroids
         {
             if (_bulletPool == null || _player == null) return;
 
-            Vector2 bulletVelocity = Vector2.Transform(new Vector2(0, -1), Matrix3x2.CreateRotation(MathF.PI / 180 * _player.Rotation)) * (GameConstants.BULLET_SPEED / GameConstants.TARGET_FPS);
-            if (_bulletPool.SpawnBullet(_player.Position, bulletVelocity))
+            if (_bulletPool.SpawnBullet(_player.Position, Vector2.Transform(new Vector2(0, -1), Matrix3x2.CreateRotation(MathF.PI / 180 * _player.Rotation)) * GameConstants.BULLET_SPEED))
             {
                 // Bullet spawned successfully
                 if (_audioManager != null) _audioManager.PlaySound("shoot", 0.6f);
@@ -341,7 +340,8 @@ namespace Asteroids
                 // Create bullet trail effect
                 if (_graphicsSettings?.EnableParticleTrails == true)
                 {
-                    _explosionPool?.CreateBulletTrail(_player.Position, bulletVelocity * GameConstants.TARGET_FPS, DynamicTheme.GetBulletColor());
+                    Vector2 bulletVelocity = Vector2.Transform(new Vector2(0, -1), Matrix3x2.CreateRotation(MathF.PI / 180 * _player.Rotation)) * GameConstants.BULLET_SPEED;
+                    _explosionPool?.CreateBulletTrail(_player.Position, bulletVelocity, DynamicTheme.GetBulletColor());
                 }
             }
         }

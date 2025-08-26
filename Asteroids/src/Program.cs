@@ -8,7 +8,7 @@ namespace Asteroids
         {
             try
             {
-                // Use GameProgram as the main game implementation
+                // Revert to original GameProgram implementation
                 var gameProgram = new GameProgram();
                 gameProgram.Run();
             }

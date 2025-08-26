@@ -191,7 +191,7 @@ namespace Asteroids
         public float TimeToLive { get; set; }
         public float MaxTimeToLive { get; set; }
         
-        private const float DEFAULT_TTL = 180f; // 3 seconds at 60 FPS
+        private const float DEFAULT_TTL = 360f; // 6 seconds at 60 FPS
         private const float BULLET_RADIUS = 2f;
 
         public float Radius => BULLET_RADIUS;
