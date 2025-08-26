@@ -1,0 +1,10 @@
+{
+  "asteroids-perf": [
+    {
+      "key": "performance/bottlenecks",
+      "value": "CRITICAL BOTTLENECKS: 1.Collision O(n²) brute force, 2.Particle system inefficient updates, 3.Memory allocations causing GC pressure, 4.Single-threaded rendering, 5.Game loop not optimized. SOLUTIONS: Spatial hashing, object pooling, SIMD, multi-threading, render batching.",
+      "namespace": "asteroids-perf",
+      "timestamp": 1756138466826
+    }
+  ]
+}

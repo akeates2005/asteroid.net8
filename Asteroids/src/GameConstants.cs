@@ -23,8 +23,10 @@ namespace Asteroids
         public const float SHIELD_RADIUS_MULTIPLIER = 1.5f;
 
         // Bullet Settings
-        public const float BULLET_SPEED = 5f;
-        public const float BULLET_RADIUS = 2f;
+        public const float BULLET_SPEED = 400f; // pixels per second
+        public const float BULLET_SIZE = 2f; // radius
+        public const float BULLET_RADIUS = 2f; // backward compatibility
+        public const float BULLET_LIFETIME = 2.5f; // seconds
         public const int BULLET_SCORE_VALUE = 100;
 
         // Asteroid Settings
@@ -95,5 +97,11 @@ namespace Asteroids
         public const int MAX_LIGHTS = 8;
         public const bool ENABLE_FRUSTUM_CULLING = true;
         public const bool ENABLE_DEPTH_SORTING = true;
+        
+        // Spatial Partitioning Settings
+        public const float SPATIAL_GRID_CELL_SIZE = 50f;
+        
+        // Explosion Settings
+        public const float EXPLOSION_MAX_RADIUS = 50f;
     }
 }

@@ -73,12 +73,7 @@ namespace Asteroids
 
         public static RenderStats GetRenderStats()
         {
-            return new RenderStats { TotalItems = 0 };
+            return new RenderStats { TotalItems = 0, RenderedItems = 0, CulledItems = 0, FrameTime = 0f, RenderMode = "3D (Disabled)" };
         }
-    }
-
-    public struct RenderStats
-    {
-        public int TotalItems { get; set; }
     }
 }
