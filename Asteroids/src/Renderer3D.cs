@@ -12,11 +12,24 @@ namespace Asteroids
     {
         private RenderStats _stats;
         private bool _isInitialized;
+        private Camera3D _camera;
+        private ProceduralAsteroidGenerator? _asteroidGenerator;
 
         public Renderer3D()
         {
             _stats = new RenderStats { RenderMode = "3D" };
             _isInitialized = false;
+            _asteroidGenerator = new ProceduralAsteroidGenerator();
+            
+            // Initialize 3D camera
+            _camera = new Camera3D
+            {
+                Position = new Vector3(0, 20, 20),
+                Target = Vector3.Zero,
+                Up = Vector3.UnitY,
+                FovY = GameConstants.CAMERA_FOV,
+                Projection = CameraProjection.Perspective
+            };
         }
 
         public bool Initialize()
@@ -50,16 +63,16 @@ namespace Asteroids
             _stats.CulledItems = 0;
             _stats.FrameTime = Raylib.GetFrameTime();
 
-            // Delegate to existing 3D integration
-            // Note: Player position/velocity would need to be passed from game state
-            Renderer3DIntegration.BeginFrame(Vector2.Zero, Vector2.Zero, _stats.FrameTime);
+            // Begin 3D mode with camera
+            Raylib.BeginMode3D(_camera);
         }
 
         public void EndFrame()
         {
             if (!_isInitialized) return;
 
-            Renderer3DIntegration.EndFrame();
+            // End 3D mode
+            Raylib.EndMode3D();
         }
 
         public void RenderPlayer(Vector2 position, float rotation, Color color, bool isShieldActive, float shieldAlpha = 0.5f)
@@ -75,12 +88,28 @@ namespace Asteroids
             }
 
             _stats.RenderedItems++;
-            Renderer3DIntegration.RenderPlayer(position, rotation, color, isShieldActive);
+            
+            // Convert 2D position to 3D
+            Vector3 position3D = new Vector3(position.X - GameConstants.SCREEN_WIDTH / 2, 1, position.Y - GameConstants.SCREEN_HEIGHT / 2);
+            
+            // Create rotation matrix from 2D rotation
+            Matrix4x4 rotationMatrix = Matrix4x4.CreateRotationY(rotation * MathF.PI / 180.0f);
+            Matrix4x4 transform = rotationMatrix * Matrix4x4.CreateTranslation(position3D);
+            
+            // Draw player as a cone
+            Raylib.DrawCube(position3D, GameConstants.PLAYER_3D_SIZE, GameConstants.PLAYER_3D_SIZE * 2, GameConstants.PLAYER_3D_SIZE, color);
+            
+            // Draw shield if active
+            if (isShieldActive)
+            {
+                Color shieldColor = new Color(0, 255, 255, (int)(shieldAlpha * 255));
+                Raylib.DrawSphereWires(position3D, GameConstants.PLAYER_SIZE * GameConstants.SHIELD_RADIUS_MULTIPLIER, 8, 8, shieldColor);
+            }
         }
 
         public void RenderAsteroid(Vector2 position, float radius, Color color, int seed, int lodLevel = 0)
         {
-            if (!_isInitialized) return;
+            if (!_isInitialized || _asteroidGenerator == null) return;
 
             _stats.TotalItems++;
 
@@ -91,7 +120,29 @@ namespace Asteroids
             }
 
             _stats.RenderedItems++;
-            Renderer3DIntegration.RenderAsteroid(position, radius, color, seed);
+            
+            // Determine asteroid size based on radius
+            AsteroidSize size = radius switch
+            {
+                >= GameConstants.LARGE_ASTEROID_RADIUS => AsteroidSize.Large,
+                >= GameConstants.MEDIUM_ASTEROID_RADIUS => AsteroidSize.Medium,
+                _ => AsteroidSize.Small
+            };
+            
+            // Generate procedural mesh
+            Mesh asteroidMesh = _asteroidGenerator.GenerateAsteroidMesh(size, seed, lodLevel);
+            
+            // Create material
+            Material material = Raylib.LoadMaterialDefault();
+            
+            // Note: Material color setting simplified for compatibility
+            // In a full implementation, you would set material properties appropriately
+            
+            // Calculate 3D position (convert 2D to 3D)
+            Vector3 position3D = new Vector3(position.X - GameConstants.SCREEN_WIDTH / 2, 0, position.Y - GameConstants.SCREEN_HEIGHT / 2);
+            
+            // Draw the procedural asteroid mesh
+            Raylib.DrawMesh(asteroidMesh, material, Matrix4x4.CreateTranslation(position3D));
         }
 
         public void RenderBullet(Vector2 position, Color color)
@@ -107,7 +158,12 @@ namespace Asteroids
             }
 
             _stats.RenderedItems++;
-            Renderer3DIntegration.RenderBullet(position, color);
+            
+            // Convert 2D position to 3D
+            Vector3 position3D = new Vector3(position.X - GameConstants.SCREEN_WIDTH / 2, 0.5f, position.Y - GameConstants.SCREEN_HEIGHT / 2);
+            
+            // Draw bullet as a small sphere
+            Raylib.DrawSphere(position3D, GameConstants.BULLET_3D_SIZE, color);
         }
 
         public void RenderExplosion(Vector2 position, float intensity, Color color)
@@ -124,7 +180,18 @@ namespace Asteroids
             }
 
             _stats.RenderedItems++;
-            Renderer3DIntegration.RenderExplosion(position, intensity, color);
+            
+            // Convert 2D position to 3D
+            Vector3 position3D = new Vector3(position.X - GameConstants.SCREEN_WIDTH / 2, 2, position.Y - GameConstants.SCREEN_HEIGHT / 2);
+            
+            // Draw explosion as expanding spheres with varying opacity
+            float radius = explosionRadius * intensity;
+            Color explosionColor = new Color(color.R, color.G, color.B, (int)(intensity * 255));
+            
+            // Draw multiple explosion spheres for effect
+            Raylib.DrawSphereWires(position3D, radius, 8, 8, explosionColor);
+            Raylib.DrawSphereWires(position3D, radius * 0.7f, 6, 6, explosionColor);
+            Raylib.DrawSphere(position3D, radius * 0.3f, explosionColor);
         }
 
         public void RenderGrid(bool enabled, Color color)
@@ -133,7 +200,30 @@ namespace Asteroids
 
             _stats.TotalItems++;
             _stats.RenderedItems++;
-            Renderer3DIntegration.RenderGrid(enabled);
+            
+            // Draw 3D grid
+            int gridSize = GameConstants.GRID_SIZE;
+            int halfWidth = GameConstants.SCREEN_WIDTH / 2;
+            int halfHeight = GameConstants.SCREEN_HEIGHT / 2;
+            
+            // Draw grid lines on the XZ plane (ground plane)
+            for (int x = -halfWidth; x <= halfWidth; x += gridSize)
+            {
+                Raylib.DrawLine3D(
+                    new Vector3(x, 0, -halfHeight),
+                    new Vector3(x, 0, halfHeight),
+                    color
+                );
+            }
+            
+            for (int z = -halfHeight; z <= halfHeight; z += gridSize)
+            {
+                Raylib.DrawLine3D(
+                    new Vector3(-halfWidth, 0, z),
+                    new Vector3(halfWidth, 0, z),
+                    color
+                );
+            }
         }
 
         public bool IsInViewFrustum(Vector2 position, float radius)
@@ -164,7 +254,7 @@ namespace Asteroids
         {
             if (_isInitialized)
             {
-                Renderer3DIntegration.Cleanup();
+                _asteroidGenerator?.ClearCache();
                 ErrorManager.LogInfo("3D Renderer cleanup completed");
             }
         }
