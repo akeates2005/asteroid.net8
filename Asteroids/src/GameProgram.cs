@@ -27,6 +27,12 @@ namespace Asteroids
         private List<AsteroidSpatialEntity>? _asteroidEntities;
         private List<BulletSpatialEntity>? _bulletEntities;
 
+        // Spatial Partitioning System for enhanced collision detection
+        private SpatialGrid? _spatialGrid;
+        private PlayerSpatialEntity? _playerEntity;
+        private List<AsteroidSpatialEntity>? _asteroidEntities;
+        private List<BulletSpatialEntity>? _bulletEntities;
+
         // Enhanced Rendering System
         private IRenderer? _renderer;
         private LODManager? _lodManager;
