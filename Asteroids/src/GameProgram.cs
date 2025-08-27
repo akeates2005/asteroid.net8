@@ -33,6 +33,9 @@ namespace Asteroids
         private ProceduralAsteroidGenerator? _asteroidGenerator;
         private bool _render3D = false;
 
+        // Power-Up System
+        private PowerUpManager? _powerUpManager;
+
         private Player? _player;
         private List<Asteroid>? _asteroids;
         private List<ExplosionParticle>? _explosions;
@@ -99,6 +102,9 @@ namespace Asteroids
             // Initialize object pools with graphics settings scaling
             _bulletPool = new BulletPool(GameConstants.MAX_BULLETS);
             _explosionPool = new AdvancedParticlePool(_graphicsSettings.MaxParticles);
+            
+            // Initialize power-up system
+            _powerUpManager = new PowerUpManager(_explosionPool, _audioManager);
             
             // Initialize dynamic theme
             DynamicTheme.ResetToLevel(_level);
@@ -219,6 +225,7 @@ namespace Asteroids
                         _bulletPool?.Clear();
                         if (_explosions != null) _explosions.Clear();
                         _explosionPool?.Clear(); // Clear explosion particle pool
+                        _powerUpManager?.Clear(); // Clear power-ups
                         if (_visualEffects != null) _visualEffects.Clear();
                         if (_player != null) _player.ClearEngineParticles(); // Clear player engine particles
                         
@@ -255,6 +262,9 @@ namespace Asteroids
             
             // Update explosion particles through pool
             _explosionPool?.Update();
+
+            // Update power-ups
+            _powerUpManager?.UpdatePowerUps(Raylib.GetFrameTime());
 
             // Update asteroids
             foreach (var asteroid in _asteroids)
@@ -346,6 +356,13 @@ namespace Asteroids
                             CreateExplosionAt(asteroid.Position);
                             if (_audioManager != null) _audioManager.PlaySound("explosion", 0.8f);
                             
+                            // Spawn power-up with chance
+                            if (_powerUpManager != null && _random != null && _random.Next(0, 100) < GameConstants.POWERUP_SPAWN_CHANCE)
+                            {
+                                var powerUpType = (PowerUpType)_random.Next(0, 5);
+                                _powerUpManager.SpawnPowerUp(asteroid.Position, powerUpType);
+                            }
+                            
                             // Add small camera shake on asteroid destruction
                             if (Renderer3DIntegration.Is3DEnabled)
                             {
@@ -374,6 +391,13 @@ namespace Asteroids
                             asteroid.Active = false;
                             CreateExplosionAt(asteroid.Position);
                             if (_audioManager != null) _audioManager.PlaySound("explosion", 0.6f);
+                            
+                            // Spawn power-up with chance when destroyed by shield
+                            if (_powerUpManager != null && _random != null && _random.Next(0, 100) < GameConstants.POWERUP_SPAWN_CHANCE)
+                            {
+                                var powerUpType = (PowerUpType)_random.Next(0, 5);
+                                _powerUpManager.SpawnPowerUp(asteroid.Position, powerUpType);
+                            }
                         }
                         else
                         {
@@ -391,6 +415,12 @@ namespace Asteroids
                         break; // Player collision processed
                     }
                 }
+            }
+
+            // Check power-up collisions
+            if (_powerUpManager != null && _player != null)
+            {
+                _powerUpManager.CheckCollision(_player);
             }
 
             // Remove inactive objects
@@ -494,6 +524,15 @@ namespace Asteroids
                                 Theme.AsteroidColor, asteroid.GetHashCode(), lodLevel);
                         }
                     }
+                }
+
+                // Render power-ups
+                if (_powerUpManager != null)
+                {
+                    if (Renderer3DIntegration.Is3DEnabled)
+                        _powerUpManager.RenderPowerUps3D(_renderer);
+                    else
+                        _powerUpManager.RenderPowerUps2D();
                 }
 
                 // Render explosions with culling
@@ -675,6 +714,9 @@ namespace Asteroids
             
             // Clear explosion particle pool
             _explosionPool?.Clear();
+            
+            // Clear power-ups
+            _powerUpManager?.Clear();
             
             // Clear player engine particles
             if (_player != null) _player.ClearEngineParticles();

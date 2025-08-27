@@ -180,6 +180,17 @@ namespace Asteroids
             return _stats;
         }
 
+        public void RenderPowerUp3D(Vector2 position, PowerUpType type, float pulseScale, float rotation)
+        {
+            // In 2D mode, we just render the power-up as a 2D object
+            // This is a fallback implementation - actual power-up rendering should use PowerUpManager.RenderPowerUps2D()
+            _stats.TotalItems++;
+            _stats.RenderedItems++;
+            
+            // This method exists for interface compliance but isn't used in 2D mode
+            // Power-up rendering is handled by PowerUpManager.RenderPowerUps2D()
+        }
+
         public void Cleanup()
         {
             _asteroidShapeCache.Clear();

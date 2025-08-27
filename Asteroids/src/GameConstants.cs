@@ -103,5 +103,9 @@ namespace Asteroids
         
         // Explosion Settings
         public const float EXPLOSION_MAX_RADIUS = 50f;
+        
+        // Power-up Settings
+        public const float POWERUP_RADIUS = 15f;
+        public const int POWERUP_SPAWN_CHANCE = 15; // 15% chance to spawn on asteroid destruction
     }
 }

@@ -68,6 +68,15 @@ namespace Asteroids
         void RenderGrid(bool enabled, Color color);
 
         /// <summary>
+        /// Render a power-up in 3D mode
+        /// </summary>
+        /// <param name="position">Power-up position</param>
+        /// <param name="type">Power-up type</param>
+        /// <param name="pulseScale">Pulse scaling factor</param>
+        /// <param name="rotation">Power-up rotation</param>
+        void RenderPowerUp3D(Vector2 position, PowerUpType type, float pulseScale, float rotation);
+
+        /// <summary>
         /// Check if a position is within the view frustum (for culling)
         /// </summary>
         /// <param name="position">Position to check</param>

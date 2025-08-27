@@ -250,6 +250,54 @@ namespace Asteroids
             return _stats;
         }
 
+        public void RenderPowerUp3D(Vector2 position, PowerUpType type, float pulseScale, float rotation)
+        {
+            if (!_isInitialized) return;
+            
+            _stats.TotalItems++;
+            
+            if (!IsInViewFrustum(position, GameConstants.POWERUP_RADIUS))
+            {
+                _stats.CulledItems++;
+                return;
+            }
+            
+            _stats.RenderedItems++;
+            
+            // Convert 2D position to 3D
+            Vector3 position3D = new Vector3(position.X - GameConstants.SCREEN_WIDTH / 2, 1.5f, position.Y - GameConstants.SCREEN_HEIGHT / 2);
+            
+            // Define power-up colors and sizes based on type
+            Color color = type switch
+            {
+                PowerUpType.Shield => Color.Blue,
+                PowerUpType.RapidFire => Color.Red,
+                PowerUpType.MultiShot => Color.Orange,
+                PowerUpType.Health => Color.Green,
+                PowerUpType.Speed => Color.Yellow,
+                _ => Color.White
+            };
+            
+            float radius = GameConstants.POWERUP_RADIUS * pulseScale * 0.1f; // Scale down for 3D
+            
+            // Render as a spinning 3D cube or sphere
+            if (type == PowerUpType.Shield || type == PowerUpType.Health)
+            {
+                // Render as sphere for defensive power-ups
+                Raylib.DrawSphere(position3D, radius * 0.8f, color);
+                
+                // Add glow effect with wireframe
+                Color glowColor = new Color(color.R, color.G, color.B, (byte)100);
+                Raylib.DrawSphereWires(position3D, radius * 1.2f, 8, 8, glowColor);
+            }
+            else
+            {
+                // Render as rotating cube for offensive power-ups
+                Raylib.DrawCube(position3D, radius * 1.2f, radius * 1.2f, radius * 1.2f, color);
+                Raylib.DrawCubeWires(position3D, radius * 1.2f, radius * 1.2f, radius * 1.2f, Color.White);
+            }
+        }
+
         public void Cleanup()
         {
             if (_isInitialized)

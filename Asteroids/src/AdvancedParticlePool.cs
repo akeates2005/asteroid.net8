@@ -329,6 +329,73 @@ namespace Asteroids
             }
         }
 
+        public void CreatePowerUpSpawnEffect(Vector2 position, Color color)
+        {
+            // Create sparkle effect when power-up spawns
+            for (int i = 0; i < 12; i++)
+            {
+                float angle = (float)(i * 2 * Math.PI / 12);
+                Vector2 velocity = new Vector2(
+                    MathF.Cos(angle) * 80,
+                    MathF.Sin(angle) * 80
+                );
+
+                var trail = _trailPool.Rent();
+                trail.Initialize(position, velocity, color, 45); // 0.75 second lifespan
+                trail.SetFadePattern(FadePattern.Exponential);
+                _activeTrails.Add(trail);
+            }
+        }
+
+        public void CreatePowerUpCollectionEffect(Vector2 position, Color color)
+        {
+            // Create burst effect when power-up is collected
+            for (int i = 0; i < 20; i++)
+            {
+                float angle = (float)(Random.Shared.NextDouble() * 2 * Math.PI);
+                float speed = (float)(Random.Shared.NextDouble() * 120 + 60);
+                Vector2 velocity = new Vector2(MathF.Cos(angle) * speed, MathF.Sin(angle) * speed);
+                
+                var trail = _trailPool.Rent();
+                trail.Initialize(position, velocity, color, 40); // 0.67 second lifespan
+                trail.SetFadePattern(FadePattern.Linear);
+                _activeTrails.Add(trail);
+            }
+
+            // Add some bright flash particles
+            for (int i = 0; i < 8; i++)
+            {
+                Vector2 particlePos = position + new Vector2(
+                    (float)(Random.Shared.NextDouble() - 0.5) * 20,
+                    (float)(Random.Shared.NextDouble() - 0.5) * 20
+                );
+                
+                var debris = _debrisPool.Rent();
+                Color brightColor = new Color(255, 255, 255, 255);
+                debris.Initialize(particlePos, Vector2.Zero, brightColor, 4.0f, 20); // Brief bright flash
+                _activeDebris.Add(debris);
+            }
+        }
+
+        public void CreatePowerUpDespawnEffect(Vector2 position, Color color)
+        {
+            // Create gentle fade-out effect when power-up despawns
+            for (int i = 0; i < 6; i++)
+            {
+                float angle = (float)(i * 2 * Math.PI / 6);
+                Vector2 velocity = new Vector2(
+                    MathF.Cos(angle) * 40,
+                    MathF.Sin(angle) * 40
+                );
+
+                var trail = _trailPool.Rent();
+                Color fadeColor = new Color(color.R, color.G, color.B, (byte)128);
+                trail.Initialize(position, velocity, fadeColor, 30); // 0.5 second lifespan
+                trail.SetFadePattern(FadePattern.Linear);
+                _activeTrails.Add(trail);
+            }
+        }
+
         public new void Update()
         {
             base.Update(); // Update base particle system
