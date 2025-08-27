@@ -68,13 +68,34 @@ namespace Asteroids
         void RenderGrid(bool enabled, Color color);
 
         /// <summary>
-        /// Render a power-up in 3D mode
+        /// Render a power-up with type-specific visuals and animation
         /// </summary>
         /// <param name="position">Power-up position</param>
         /// <param name="type">Power-up type</param>
         /// <param name="pulseScale">Pulse scaling factor</param>
         /// <param name="rotation">Power-up rotation</param>
+        void RenderPowerUp(Vector2 position, PowerUpType type, float pulseScale, float rotation);
+
+        /// <summary>
+        /// Render a power-up in 3D mode (DEPRECATED - Use RenderPowerUp instead)
+        /// </summary>
+        /// <param name="position">Power-up position</param>
+        /// <param name="type">Power-up type</param>
+        /// <param name="pulseScale">Pulse scaling factor</param>
+        /// <param name="rotation">Power-up rotation</param>
+        [Obsolete("Use RenderPowerUp instead")]
         void RenderPowerUp3D(Vector2 position, PowerUpType type, float pulseScale, float rotation);
+
+        /// <summary>
+        /// Render an enemy ship
+        /// </summary>
+        /// <param name="position">Enemy position</param>
+        /// <param name="rotation">Enemy rotation</param>
+        /// <param name="type">Enemy type</param>
+        /// <param name="color">Enemy color</param>
+        /// <param name="size">Enemy size</param>
+        /// <param name="healthPercentage">Health percentage (0-1)</param>
+        void RenderEnemy(Vector2 position, float rotation, EnemyType type, Color color, float size, float healthPercentage);
 
         /// <summary>
         /// Check if a position is within the view frustum (for culling)
