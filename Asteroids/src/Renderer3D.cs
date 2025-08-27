@@ -250,7 +250,7 @@ namespace Asteroids
             return _stats;
         }
 
-        public void RenderPowerUp3D(Vector2 position, PowerUpType type, float pulseScale, float rotation)
+        public void RenderPowerUp(Vector2 position, PowerUpType type, float pulseScale, float rotation)
         {
             if (!_isInitialized) return;
             
@@ -298,6 +298,91 @@ namespace Asteroids
             }
         }
 
+        /// <summary>
+        /// Render an enemy ship in 3D
+        /// </summary>
+        public void RenderEnemy(Vector2 position, float rotation, EnemyType type, Color color, float size, float healthPercentage)
+        {
+            Vector3 pos3D = new Vector3(position.X, 0, position.Y);
+            
+            switch (type)
+            {
+                case EnemyType.Scout:
+                    // Scout: Sphere with wireframe
+                    Raylib.DrawSphere(pos3D, size * 0.5f, color);
+                    Raylib.DrawSphereWires(pos3D, size * 0.6f, 8, 8, Color.White);
+                    break;
+                    
+                case EnemyType.Hunter:
+                    // Hunter: Elongated cube
+                    Vector3 hSize = new Vector3(size * 0.4f, size * 0.3f, size * 0.8f);
+                    Raylib.DrawCube(pos3D, hSize.X, hSize.Y, hSize.Z, color);
+                    Raylib.DrawCubeWires(pos3D, hSize.X, hSize.Y, hSize.Z, Color.White);
+                    break;
+                    
+                case EnemyType.Destroyer:
+                    // Destroyer: Large cube with detail elements
+                    Vector3 dSize = new Vector3(size * 0.8f, size * 0.4f, size * 1.0f);
+                    Raylib.DrawCube(pos3D, dSize.X, dSize.Y, dSize.Z, color);
+                    Raylib.DrawCubeWires(pos3D, dSize.X, dSize.Y, dSize.Z, Color.White);
+                    // Add detail cubes
+                    Raylib.DrawCube(pos3D + new Vector3(0, 0.2f, 0.3f), 0.2f, 0.2f, 0.2f, Color.Gray);
+                    Raylib.DrawCube(pos3D + new Vector3(0, 0.2f, -0.3f), 0.2f, 0.2f, 0.2f, Color.Gray);
+                    break;
+                    
+                case EnemyType.Interceptor:
+                    // Interceptor: Pyramid-like shape with forward point
+                    // Draw as a series of triangles to form a pyramid
+                    Vector3 front = pos3D + new Vector3(0, 0, -size * 0.7f);
+                    Vector3 back1 = pos3D + new Vector3(-size * 0.5f, 0, size * 0.3f);
+                    Vector3 back2 = pos3D + new Vector3(size * 0.5f, 0, size * 0.3f);
+                    Vector3 top = pos3D + new Vector3(0, size * 0.4f, 0);
+                    
+                    // Draw pyramid faces
+                    Raylib.DrawTriangle3D(front, back1, top, color);
+                    Raylib.DrawTriangle3D(front, top, back2, color);
+                    Raylib.DrawTriangle3D(back1, back2, top, color);
+                    Raylib.DrawTriangle3D(front, back2, back1, color);
+                    break;
+                    
+                default:
+                    // Fallback to sphere
+                    Raylib.DrawSphere(pos3D, size * 0.5f, color);
+                    break;
+            }
+            
+            // Draw health indicator if damaged
+            if (healthPercentage < 1.0f)
+            {
+                Draw3DHealthBar(pos3D, size, healthPercentage);
+            }
+        }
+
+        private void Draw3DHealthBar(Vector3 position, float size, float healthPercentage)
+        {
+            // Draw 3D health bar above the enemy
+            Vector3 barPos = position + new Vector3(0, size + 0.5f, 0);
+            float barWidth = size * 1.2f;
+            float barHeight = 0.1f;
+            float barDepth = 0.05f;
+            
+            // Background bar (red)
+            Raylib.DrawCube(barPos, barWidth, barHeight, barDepth, Color.Red);
+            
+            // Health bar
+            float healthWidth = barWidth * healthPercentage;
+            Color healthColor = healthPercentage > 0.6f ? Color.Green : 
+                               healthPercentage > 0.3f ? Color.Yellow : Color.Red;
+            Vector3 healthBarPos = barPos + new Vector3(-(barWidth - healthWidth) * 0.5f, 0, 0);
+            Raylib.DrawCube(healthBarPos, healthWidth, barHeight, barDepth, healthColor);
+        }
+
+        public void RenderPowerUp3D(Vector2 position, PowerUpType type, float pulseScale, float rotation)
+        {
+            // Deprecated method - delegate to new implementation
+            RenderPowerUp(position, type, pulseScale, rotation);
+        }
+        
         public void Cleanup()
         {
             if (_isInitialized)

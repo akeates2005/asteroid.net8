@@ -36,6 +36,9 @@ namespace Asteroids
         // Power-Up System
         private PowerUpManager? _powerUpManager;
 
+        // Enemy AI System
+        private EnemyManager? _enemyManager;
+
         private Player? _player;
         private List<Asteroid>? _asteroids;
         private List<ExplosionParticle>? _explosions;
@@ -105,6 +108,9 @@ namespace Asteroids
             
             // Initialize power-up system
             _powerUpManager = new PowerUpManager(_explosionPool, _audioManager);
+            
+            // Initialize enemy AI system
+            _enemyManager = new EnemyManager(_bulletPool, _audioManager, _explosionPool);
             
             // Initialize dynamic theme
             DynamicTheme.ResetToLevel(_level);
@@ -226,6 +232,8 @@ namespace Asteroids
                         if (_explosions != null) _explosions.Clear();
                         _explosionPool?.Clear(); // Clear explosion particle pool
                         _powerUpManager?.Clear(); // Clear power-ups
+                        // Clear enemies
+                        _enemyManager?.ClearAllEnemies();
                         if (_visualEffects != null) _visualEffects.Clear();
                         if (_player != null) _player.ClearEngineParticles(); // Clear player engine particles
                         
@@ -271,6 +279,9 @@ namespace Asteroids
             {
                 asteroid.Update();
             }
+
+            // Update enemies
+            _enemyManager?.UpdateEnemies(_player, Raylib.GetFrameTime(), _level);
 
             // Update explosions
             for (int i = _explosions.Count - 1; i >= 0; i--)
@@ -417,6 +428,12 @@ namespace Asteroids
                 }
             }
 
+            // Check enemy collisions
+            if (_enemyManager != null && _player != null)
+            {
+                _enemyManager.HandleEnemyCollisions(_player, _bulletPool?.GetActiveBullets() ?? new List<PooledBullet>());
+            }
+
             // Check power-up collisions
             if (_powerUpManager != null && _player != null)
             {
@@ -526,13 +543,13 @@ namespace Asteroids
                     }
                 }
 
+                // Render enemies
+                _enemyManager?.RenderEnemies(_renderer);
+
                 // Render power-ups
-                if (_powerUpManager != null)
+                if (_powerUpManager != null && _renderer != null)
                 {
-                    if (Renderer3DIntegration.Is3DEnabled)
-                        _powerUpManager.RenderPowerUps3D(_renderer);
-                    else
-                        _powerUpManager.RenderPowerUps2D();
+                    _powerUpManager.RenderPowerUps(_renderer);
                 }
 
                 // Render explosions with culling
@@ -717,6 +734,9 @@ namespace Asteroids
             
             // Clear power-ups
             _powerUpManager?.Clear();
+            
+            // Clear enemies
+            _enemyManager?.ClearAllEnemies();
             
             // Clear player engine particles
             if (_player != null) _player.ClearEngineParticles();

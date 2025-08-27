@@ -168,6 +168,10 @@ namespace Asteroids
             ErrorManager.LogInfo($"Applied {type} power-up effect to player");
         }
 
+        /// <summary>
+        /// Render power-ups in 2D mode (DEPRECATED - Use RenderPowerUps instead)
+        /// </summary>
+        [Obsolete("Use RenderPowerUps(IRenderer renderer) instead")]
         public void RenderPowerUps2D()
         {
             foreach (var powerUp in _activePowerUps)
@@ -203,15 +207,18 @@ namespace Asteroids
             }
         }
 
-        public void RenderPowerUps3D(IRenderer renderer)
+        /// <summary>
+        /// Render power-ups using the unified renderer interface
+        /// </summary>
+        /// <param name="renderer">Renderer instance (handles both 2D and 3D)</param>
+        public void RenderPowerUps(IRenderer renderer)
         {
             foreach (var powerUp in _activePowerUps)
             {
                 if (!powerUp.Active) continue;
 
-                // Use renderer abstraction for 3D power-up rendering
-                // This would be implemented in the renderer to draw 3D power-up models
-                renderer.RenderPowerUp3D(powerUp.Position, powerUp.Type, powerUp.GetPulseScale(), powerUp.Rotation);
+                // Use unified renderer method - implementation handles 2D vs 3D automatically
+                renderer.RenderPowerUp(powerUp.Position, powerUp.Type, powerUp.GetPulseScale(), powerUp.Rotation);
             }
         }
 
