@@ -377,6 +377,21 @@ namespace Asteroids
             AddHitEffect(damage);
         }
 
+        /// <summary>
+        /// Trigger visual effects when the player respawns
+        /// </summary>
+        /// <param name="position">The respawn position</param>
+        public void OnPlayerRespawn(Vector2 position)
+        {
+            // Brief screen flash to indicate respawn (blue for invulnerability hint)
+            AddScreenFlash(Color.SkyBlue, 0.3f, 0.5f);
+            
+            // Gentle shake effect for respawn feedback
+            AddScreenShake(2.0f, 0.4f);
+            
+            ErrorManager.LogInfo($"Player respawn effects triggered at position {position}");
+        }
+
         public void OnAsteroidDestroyed(Vector2 position, AsteroidSize size)
         {
             float effectSize = size switch
