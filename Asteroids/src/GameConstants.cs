@@ -42,6 +42,11 @@ namespace Asteroids
         public const int BASE_ASTEROIDS_PER_LEVEL = 10;
         public const int ASTEROIDS_INCREMENT_PER_LEVEL = 2;
 
+        // Lives Settings
+        public const int STARTING_LIVES = 3;
+        public const float RESPAWN_DELAY = 2.0f;
+        public const float RESPAWN_INVULNERABILITY_TIME = 3.0f;
+
         // Particle Settings
         public const int EXPLOSION_PARTICLE_COUNT = 10;
         public const int ENGINE_PARTICLE_LIFESPAN = 20;
