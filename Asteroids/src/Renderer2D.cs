@@ -243,6 +243,39 @@ namespace Asteroids
             RenderPowerUp(position, type, pulseScale, rotation);
         }
 
+        public bool Toggle3DMode()
+        {
+            // 2D renderer cannot switch to 3D mode
+            // This would need to be handled by the renderer factory or game engine
+            ErrorManager.LogInfo("2D Renderer cannot toggle to 3D mode - requires renderer switch");
+            return false; // Still in 2D mode
+        }
+
+        public bool Is3DModeActive 
+        { 
+            get { return false; } // 2D renderer is never in 3D mode
+        }
+
+        public void HandleCameraInput()
+        {
+            // No-op for 2D renderer as specified in the interface
+            // 2D rendering doesn't use camera input
+        }
+
+        public CameraState GetCameraState()
+        {
+            // Return inactive camera state for 2D mode
+            return new CameraState
+            {
+                Position = Vector3.Zero,
+                Target = Vector3.Zero,
+                Up = Vector3.UnitY,
+                Fovy = 0f,
+                Projection = CameraProjection.Perspective,
+                IsActive = false
+            };
+        }
+
         public void Cleanup()
         {
             _asteroidShapeCache.Clear();

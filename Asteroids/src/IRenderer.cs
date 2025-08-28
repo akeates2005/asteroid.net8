@@ -112,9 +112,44 @@ namespace Asteroids
         RenderStats GetRenderStats();
 
         /// <summary>
+        /// Toggle between 2D and 3D rendering modes
+        /// </summary>
+        /// <returns>True if 3D mode is now active, false if 2D mode</returns>
+        bool Toggle3DMode();
+        
+        /// <summary>
+        /// Check if 3D rendering mode is currently active
+        /// </summary>
+        bool Is3DModeActive { get; }
+        
+        /// <summary>
+        /// Handle camera input for the current rendering mode
+        /// Only applicable in 3D mode - no-op in 2D mode
+        /// </summary>
+        void HandleCameraInput();
+        
+        /// <summary>
+        /// Get current camera state information
+        /// </summary>
+        CameraState GetCameraState();
+
+        /// <summary>
         /// Cleanup rendering resources
         /// </summary>
         void Cleanup();
+    }
+
+    /// <summary>
+    /// Camera state information for 3D rendering
+    /// </summary>
+    public struct CameraState
+    {
+        public Vector3 Position;
+        public Vector3 Target;
+        public Vector3 Up;
+        public float Fovy;
+        public CameraProjection Projection;
+        public bool IsActive;
     }
 
     /// <summary>
