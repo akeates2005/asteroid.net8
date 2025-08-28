@@ -50,6 +50,11 @@ namespace Asteroids
         private bool _gameOver;
         private bool _levelComplete;
         private bool _gamePaused;
+        
+        // Lives System
+        private int _lives;
+        private bool _playerRespawning = false;
+        private float _respawnTimer = 0f;
 
         public void Run()
         {
@@ -184,13 +189,13 @@ namespace Asteroids
             // Handle 3D toggle
             if (Raylib.IsKeyPressed(KeyboardKey.F3))
             {
-                Renderer3DIntegration.Toggle3DMode(); // TODO: Integrate with IRenderer
+                _renderer?.Toggle3DMode(); // Clean interface usage
             }
 
             // Handle camera controls in 3D mode
-            if (Renderer3DIntegration.Is3DEnabled)
+            if (_renderer?.Is3DModeActive == true)
             {
-                Renderer3DIntegration.HandleCameraInput(); // TODO: Integrate with IRenderer
+                _renderer.HandleCameraInput(); // Clean interface usage
             }
 
             if (!_gameOver && !_levelComplete && !_gamePaused)
@@ -245,6 +250,19 @@ namespace Asteroids
 
         private void UpdateGameLogic()
         {
+            // Handle respawning player - Phase 4 respawn system
+            if (_playerRespawning)
+            {
+                _respawnTimer -= Raylib.GetFrameTime();
+                if (_respawnTimer <= 0)
+                {
+                    RespawnPlayer();
+                }
+                // Skip normal player updates during respawn but continue updating other game objects
+                UpdateNonPlayerGameObjects();
+                return;
+            }
+            
             if (_player == null || _asteroids == null || _explosions == null || _random == null) return;
 
             // Update player
@@ -297,6 +315,52 @@ namespace Asteroids
 
             // Simple collision detection (brute force for now)
             CheckCollisions();
+
+            // Check level completion
+            if (_asteroids.Count == 0)
+            {
+                _levelComplete = true;
+            }
+        }
+
+        /// <summary>
+        /// Updates game objects while player is respawning (excluding player-specific logic)
+        /// </summary>
+        private void UpdateNonPlayerGameObjects()
+        {
+            if (_asteroids == null || _explosions == null || _random == null) return;
+
+            // Update bullets through pool
+            _bulletPool?.Update();
+            
+            // Update explosion particles through pool
+            _explosionPool?.Update();
+
+            // Update power-ups
+            _powerUpManager?.UpdatePowerUps(Raylib.GetFrameTime());
+
+            // Update asteroids
+            foreach (var asteroid in _asteroids)
+            {
+                asteroid.Update();
+            }
+
+            // Update enemies (but don't target null player)
+            _enemyManager?.UpdateEnemies(null, Raylib.GetFrameTime(), _level);
+
+            // Update explosions
+            for (int i = _explosions.Count - 1; i >= 0; i--)
+            {
+                _explosions[i].Update();
+                if (!_explosions[i].IsActive)
+                {
+                    var explosion = _explosions[i];
+                    _explosions.RemoveAt(i);
+                }
+            }
+
+            // Check bullet-asteroid collisions only (no player collisions during respawn)
+            CheckNonPlayerCollisions();
 
             // Check level completion
             if (_asteroids.Count == 0)
@@ -412,16 +476,7 @@ namespace Asteroids
                         }
                         else
                         {
-                            _gameOver = true;
-                            _visualEffects?.OnGameOver();
-                            CreateExplosionAt(_player.Position);
-                            if (_audioManager != null) _audioManager.PlaySound("explosion", 1.0f);
-                            
-                            // Add camera shake on player death
-                            if (Renderer3DIntegration.Is3DEnabled)
-                            {
-                                Renderer3DIntegration.AddCameraShake(5f, 1f);
-                            }
+                            HandlePlayerDeath();
                         }
                         break; // Player collision processed
                     }
@@ -444,6 +499,96 @@ namespace Asteroids
             _asteroids.RemoveAll(a => !a.Active);
         }
 
+        /// <summary>
+        /// Checks collisions when player is respawning (bullets vs asteroids and enemies only)
+        /// </summary>
+        private void CheckNonPlayerCollisions()
+        {
+            if (_bulletPool == null || _asteroids == null || _spatialGrid == null ||
+                _asteroidEntities == null || _bulletEntities == null) return;
+
+            // Clear and repopulate spatial grid (without player)
+            _spatialGrid.Clear();
+
+            // Update and add active asteroids to spatial grid
+            _asteroidEntities.Clear();
+            foreach (var asteroid in _asteroids)
+            {
+                if (asteroid.Active)
+                {
+                    var asteroidEntity = new AsteroidSpatialEntity(asteroid);
+                    _asteroidEntities.Add(asteroidEntity);
+                    _spatialGrid.Insert(asteroidEntity);
+                }
+            }
+
+            // Update and add active bullets to spatial grid
+            _bulletEntities.Clear();
+            var activeBullets = _bulletPool.GetActiveBullets();
+            foreach (var bullet in activeBullets)
+            {
+                if (bullet.Active)
+                {
+                    var bulletEntity = new BulletSpatialEntity((PooledBullet)bullet);
+                    _bulletEntities.Add(bulletEntity);
+                    _spatialGrid.Insert(bulletEntity);
+                }
+            }
+
+            // Bullet-asteroid collisions using spatial partitioning
+            foreach (var bulletEntity in _bulletEntities)
+            {
+                var bullet = bulletEntity.GetBullet();
+                if (!bullet.Active) continue;
+
+                var nearbyEntities = _spatialGrid.Query(bullet.Position, GameConstants.BULLET_RADIUS);
+                foreach (var entity in nearbyEntities)
+                {
+                    if (entity is AsteroidSpatialEntity asteroidEntity)
+                    {
+                        var asteroid = asteroidEntity.GetAsteroid();
+                        if (!asteroid.Active) continue;
+
+                        float distance = Vector2.Distance(bullet.Position, asteroid.Position);
+                        if (distance <= GameConstants.BULLET_RADIUS + asteroid.Radius)
+                        {
+                            _bulletPool.DeactivateBullet((PooledBullet)bullet);
+                            asteroid.Active = false;
+                            _score += GameConstants.BULLET_SCORE_VALUE;
+                            
+                            // Enhanced explosion effects
+                            _visualEffects?.OnAsteroidDestroyed(asteroid.Position, asteroid.AsteroidSize);
+                            CreateExplosionAt(asteroid.Position);
+                            if (_audioManager != null) _audioManager.PlaySound("explosion", 0.8f);
+                            
+                            // Spawn power-up with chance
+                            if (_powerUpManager != null && _random != null && _random.Next(0, 100) < GameConstants.POWERUP_SPAWN_CHANCE)
+                            {
+                                var powerUpType = (PowerUpType)_random.Next(0, 5);
+                                _powerUpManager.SpawnPowerUp(asteroid.Position, powerUpType);
+                            }
+                            
+                            // Add small camera shake on asteroid destruction
+                            if (Renderer3DIntegration.Is3DEnabled)
+                            {
+                                Renderer3DIntegration.AddCameraShake(1f, 0.2f);
+                            }
+                            break; // Bullet can only hit one asteroid
+                        }
+                    }
+                }
+            }
+
+            // Check enemy collisions (but no player collision checks)
+            if (_enemyManager != null)
+            {
+                _enemyManager.HandleEnemyCollisions(null, _bulletPool?.GetActiveBullets() ?? new List<PooledBullet>());
+            }
+
+            // Remove inactive objects
+            _asteroids.RemoveAll(a => !a.Active);
+        }
+
         private void FireBullet()
         {
             if (_bulletPool == null || _player == null) return;
@@ -460,6 +605,48 @@ namespace Asteroids
                 {
                     _explosionPool?.CreateBulletTrail(_player.Position, bulletVelocity * GameConstants.TARGET_FPS, DynamicTheme.GetBulletColor());
                 }
+            }
+        }
+
+        private void HandlePlayerDeath()
+        {
+            // Store player position for explosion before clearing
+            Vector2 deathPosition = _player?.Position ?? Vector2.Zero;
+            
+            // Decrement lives
+            _lives--;
+            
+            // Check if game over (lives <= 0) or start respawn sequence
+            if (_lives <= 0)
+            {
+                _gameOver = true;
+                _visualEffects?.OnGameOver();
+                
+                // Visual/audio feedback for game over
+                if (_audioManager != null) _audioManager.PlaySound("explosion", 1.0f);
+            }
+            else
+            {
+                // Start respawn sequence
+                _playerRespawning = true;
+                _respawnTimer = GameConstants.RESPAWN_DELAY;
+                
+                // Visual/audio feedback for life lost
+                _visualEffects?.OnPlayerHit(1.0f); // Use OnPlayerHit as placeholder for player death
+                if (_audioManager != null) _audioManager.PlaySound("explosion", 0.8f);
+                
+                // Hide player temporarily during respawn
+                _player = null;
+                _playerEntity = null;
+            }
+            
+            // Create explosion effects at death location
+            CreateExplosionAt(deathPosition);
+            
+            // Add camera shake if 3D enabled
+            if (Renderer3DIntegration.Is3DEnabled)
+            {
+                Renderer3DIntegration.AddCameraShake(5f, 1f);
             }
         }
 
@@ -505,8 +692,8 @@ namespace Asteroids
             {
                 // Draw game objects using IRenderer with LOD support
                 
-                // Render player
-                if (_player != null) 
+                // Render player (only if not respawning)
+                if (_player != null && !_playerRespawning) 
                 {
                     _renderer?.RenderPlayer(_player.Position, _player.Rotation, 
                         Theme.PlayerColor, _player.IsShieldActive);
@@ -590,8 +777,7 @@ namespace Asteroids
                 // Draw enhanced animated UI
                 if (_animatedHUD != null && _player != null)
                 {
-                    int lives = 3; // Simplified - could be tracked properly
-                    _animatedHUD.DrawHUD(_player, _level, _score, lives);
+                    _animatedHUD.DrawHUD(_player, _level, _score, _lives);
                 }
                 else
                 {
@@ -609,6 +795,19 @@ namespace Asteroids
                 }
                 
                 _graphicsProfiler?.EndHUDRender();
+                
+                // Display respawn countdown when player is respawning
+                if (_playerRespawning && _respawnTimer > 0)
+                {
+                    int countdown = (int)MathF.Ceiling(_respawnTimer);
+                    string countdownText = $"RESPAWNING IN {countdown}";
+                    int textWidth = Raylib.MeasureText(countdownText, GameConstants.FONT_SIZE_LARGE);
+                    Raylib.DrawText(countdownText, 
+                        GameConstants.SCREEN_WIDTH / 2 - textWidth / 2, 
+                        GameConstants.SCREEN_HEIGHT / 2 - 50, 
+                        GameConstants.FONT_SIZE_LARGE, 
+                        DynamicTheme.GetTextColor());
+                }
             }
             else if (_levelComplete)
             {
@@ -716,6 +915,11 @@ namespace Asteroids
             _gameOver = false;
             _levelComplete = false;
             _gamePaused = false;
+            
+            // Initialize lives system
+            _lives = GameConstants.STARTING_LIVES;
+            _playerRespawning = false;
+            _respawnTimer = 0f;
 
             if (_player != null)
             {
@@ -784,6 +988,34 @@ namespace Asteroids
 
             ErrorManager.LogInfo($"Started level {level} with {asteroidCount} asteroids");
         }
+
+        // ===== RESPAWN SYSTEM METHODS =====
+        
+        /// <summary>
+        /// Respawns the player at the center of the screen with temporary invulnerability
+        /// </summary>
+        private void RespawnPlayer()
+        {
+            // Always respawn at center screen (classic Asteroids behavior)
+            Vector2 spawnPosition = new Vector2(GameConstants.SCREEN_WIDTH / 2, GameConstants.SCREEN_HEIGHT / 2);
+            
+            // Recreate player
+            _player = new Player(spawnPosition, GameConstants.PLAYER_SIZE);
+            _playerEntity = new PlayerSpatialEntity(_player);
+            
+            // Add temporary invulnerability
+            _player.IsShieldActive = true;
+            _player.ShieldDuration = GameConstants.RESPAWN_INVULNERABILITY_TIME * GameConstants.TARGET_FPS;
+            
+            // Visual effects for respawn
+            _visualEffects?.OnPlayerRespawn(spawnPosition);
+            if (_audioManager != null) _audioManager.PlaySound("respawn", 0.7f);
+            
+            // Reset respawn state
+            _playerRespawning = false;
+            _respawnTimer = 0f;
+        }
+
 
         private void Cleanup()
         {

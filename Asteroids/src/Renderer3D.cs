@@ -382,6 +382,53 @@ namespace Asteroids
             // Deprecated method - delegate to new implementation
             RenderPowerUp(position, type, pulseScale, rotation);
         }
+
+        public bool Toggle3DMode()
+        {
+            // 3D renderer cannot switch to 2D mode
+            // This would need to be handled by the renderer factory or game engine
+            ErrorManager.LogInfo("3D Renderer cannot toggle to 2D mode - requires renderer switch");
+            return true; // Still in 3D mode
+        }
+
+        public bool Is3DModeActive 
+        { 
+            get { return _isInitialized; } // 3D renderer is active when initialized
+        }
+
+        public void HandleCameraInput()
+        {
+            if (!_isInitialized) return;
+
+            // Delegate to existing 3D integration camera handling
+            Renderer3DIntegration.HandleCameraInput();
+        }
+
+        public CameraState GetCameraState()
+        {
+            if (!_isInitialized)
+            {
+                return new CameraState
+                {
+                    Position = Vector3.Zero,
+                    Target = Vector3.Zero,
+                    Up = Vector3.UnitY,
+                    Fovy = 0f,
+                    Projection = CameraProjection.Perspective,
+                    IsActive = false
+                };
+            }
+
+            return new CameraState
+            {
+                Position = _camera.Position,
+                Target = _camera.Target,
+                Up = _camera.Up,
+                Fovy = _camera.FovY,
+                Projection = _camera.Projection,
+                IsActive = true
+            };
+        }
         
         public void Cleanup()
         {
