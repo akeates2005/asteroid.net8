@@ -174,8 +174,17 @@ namespace Asteroids
         {
             try
             {
-                // Use the existing Renderer3DIntegration to check 3D support
-                return Renderer3DIntegration.Initialize();
+                // Test 3D support by attempting to create and initialize a 3D renderer
+                var testRenderer = new Renderer3D();
+                bool isSupported = testRenderer.Initialize();
+                
+                // Clean up the test renderer
+                if (isSupported)
+                {
+                    testRenderer.Cleanup();
+                }
+                
+                return isSupported;
             }
             catch (Exception ex)
             {

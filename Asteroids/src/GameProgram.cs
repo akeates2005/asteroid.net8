@@ -31,7 +31,6 @@ namespace Asteroids
         private IRenderer? _renderer;
         private LODManager? _lodManager;
         private ProceduralAsteroidGenerator? _asteroidGenerator;
-        private bool _render3D = false;
 
         // Power-Up System
         private PowerUpManager? _powerUpManager;
@@ -134,15 +133,7 @@ namespace Asteroids
             _random = new Random();
 
             // 3D rendering is now handled by the IRenderer abstraction
-            if (Renderer3DIntegration.Initialize())
-            {
-                _render3D = true;
-                ErrorManager.LogInfo("3D rendering enabled via IRenderer");
-            }
-            else
-            {
-                ErrorManager.LogInfo("3D rendering disabled, using 2D mode via IRenderer");
-            }
+            ErrorManager.LogInfo($"Renderer initialized: {_renderer.GetType().Name}, 3D Mode: {_renderer.Is3DModeActive}");
 
             // Initialize game state
             ResetGame();
@@ -438,11 +429,8 @@ namespace Asteroids
                                 _powerUpManager.SpawnPowerUp(asteroid.Position, powerUpType);
                             }
                             
-                            // Add small camera shake on asteroid destruction
-                            if (Renderer3DIntegration.Is3DEnabled)
-                            {
-                                Renderer3DIntegration.AddCameraShake(1f, 0.2f);
-                            }
+                            // Add visual feedback on asteroid destruction
+                            _visualEffects?.AddScreenShake(1f, 0.2f);
                             break; // Bullet can only hit one asteroid
                         }
                     }
@@ -568,11 +556,8 @@ namespace Asteroids
                                 _powerUpManager.SpawnPowerUp(asteroid.Position, powerUpType);
                             }
                             
-                            // Add small camera shake on asteroid destruction
-                            if (Renderer3DIntegration.Is3DEnabled)
-                            {
-                                Renderer3DIntegration.AddCameraShake(1f, 0.2f);
-                            }
+                            // Add visual feedback on asteroid destruction
+                            _visualEffects?.AddScreenShake(1f, 0.2f);
                             break; // Bullet can only hit one asteroid
                         }
                     }
@@ -643,11 +628,8 @@ namespace Asteroids
             // Create explosion effects at death location
             CreateExplosionAt(deathPosition);
             
-            // Add camera shake if 3D enabled
-            if (Renderer3DIntegration.Is3DEnabled)
-            {
-                Renderer3DIntegration.AddCameraShake(5f, 1f);
-            }
+            // Add visual feedback for player death
+            _visualEffects?.AddScreenShake(5f, 1f);
         }
 
         private void CreateExplosionAt(Vector2 position)
@@ -676,11 +658,7 @@ namespace Asteroids
             // Begin frame rendering via IRenderer
             _renderer?.BeginFrame();
 
-            // Begin 3D rendering if enabled (legacy support)
-            if (Renderer3DIntegration.Is3DEnabled && _player != null)
-            {
-                Renderer3DIntegration.BeginFrame(_player.Position, _player.Velocity, deltaTime);
-            }
+            // 3D rendering is handled by the IRenderer abstraction - no legacy code needed
 
             // Draw grid via IRenderer abstraction
             if (_settingsManager?.Current.Graphics.Basic.ShowGrid == true)
@@ -756,20 +734,12 @@ namespace Asteroids
                     }
                 }
                 
-                // Legacy 3D rendering (for compatibility during transition)
-                if (Renderer3DIntegration.Is3DEnabled)
-                {
-                    // Keep original rendering as fallback
-                }
+                // All rendering is now handled through the IRenderer abstraction
                 
-                // Legacy 2D rendering for particle effects (temporary during transition)
-                if (!Renderer3DIntegration.Is3DEnabled)
-                {
-                    // Begin particle rendering profiling
-                    _graphicsProfiler?.BeginParticleRender();
-                    _explosionPool?.Draw();
-                    _graphicsProfiler?.EndParticleRender(_explosionPool?.GetActiveParticleCount() ?? 0);
-                }
+                // Particle effects rendering (independent of 3D/2D mode)
+                _graphicsProfiler?.BeginParticleRender();
+                _explosionPool?.Draw();
+                _graphicsProfiler?.EndParticleRender(_explosionPool?.GetActiveParticleCount() ?? 0);
 
                 // Begin HUD rendering profiling
                 _graphicsProfiler?.BeginHUDRender();
@@ -846,11 +816,7 @@ namespace Asteroids
             // End frame rendering via IRenderer
             _renderer?.EndFrame();
             
-            // End 3D rendering if enabled (legacy support)
-            if (Renderer3DIntegration.Is3DEnabled)
-            {
-                Renderer3DIntegration.EndFrame();
-            }
+            // 3D rendering cleanup is handled by the IRenderer abstraction - no legacy code needed
 
             // Begin effects rendering profiling
             _graphicsProfiler?.BeginEffectsRender();
@@ -866,7 +832,6 @@ namespace Asteroids
             // Draw enhanced performance info in debug mode
             #if DEBUG
             var renderStats = _renderer?.GetRenderStats() ?? new RenderStats { RenderMode = "Unknown" };
-            string mode = Renderer3DIntegration.Is3DEnabled ? "3D" : "2D";
             Raylib.DrawText($"FPS: {Raylib.GetFPS()} | Mode: {renderStats.RenderMode} | F3: Toggle 3D", 10, GameConstants.SCREEN_HEIGHT - 30, 16, Color.Green);
             
             // Show LOD and culling stats
@@ -898,9 +863,8 @@ namespace Asteroids
             }
             
             // Draw camera info in 3D mode
-            if (Renderer3DIntegration.Is3DEnabled && !_gamePaused)
+            if (_renderer?.Is3DModeActive == true && !_gamePaused)
             {
-                var cameraInfo = Renderer3DIntegration.GetRenderStats();
                 Raylib.DrawText("3D Camera Controls: 1-4 (Mode) | F1-F4 (Style) | Q/E (Height) | Wheel (Zoom)", 
                     10, GameConstants.SCREEN_HEIGHT - 70, 12, Color.Yellow);
             }
@@ -1033,8 +997,7 @@ namespace Asteroids
                 _renderer?.Cleanup();
                 _asteroidGenerator?.ClearCache();
                 
-                // Cleanup 3D rendering (legacy support)
-                Renderer3DIntegration.Cleanup();
+                // 3D rendering cleanup is handled by the IRenderer abstraction
                 
                 ErrorManager.CleanupOldLogs();
                 ErrorManager.LogInfo("Game cleanup completed");
