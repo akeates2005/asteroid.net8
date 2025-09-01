@@ -1,17 +1,21 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Asteroids
 {
     /// <summary>
-    /// Game settings data structure
+    /// Game settings data structure matching the flat JSON structure
     /// </summary>
     public class GameSettings
     {
         [JsonPropertyName("graphics")]
-        public EnhancedGraphicsSettingsWrapper Graphics { get; set; } = new();
+        public BasicGraphicsSettings Graphics { get; set; } = new();
+
+        [JsonPropertyName("graphics3D")]
+        public Graphics3DSettings Graphics3D { get; set; } = new();
 
         [JsonPropertyName("audio")]
         public AudioSettings Audio { get; set; } = new();
@@ -25,6 +29,9 @@ namespace Asteroids
 
     public class BasicGraphicsSettings
     {
+        [JsonPropertyName("defaultRenderMode")]
+        public string DefaultRenderMode { get; set; } = "auto";
+
         [JsonPropertyName("fullscreen")]
         public bool Fullscreen { get; set; } = false;
 
@@ -39,15 +46,72 @@ namespace Asteroids
 
         [JsonPropertyName("showFPS")]
         public bool ShowFPS { get; set; } = false;
+
+        [JsonPropertyName("qualityLevel")]
+        public string QualityLevel { get; set; } = "balanced";
+
+        [JsonPropertyName("maxLODLevel")]
+        public int MaxLODLevel { get; set; } = 2;
+
+        [JsonPropertyName("enableFrustumCulling")]
+        public bool EnableFrustumCulling { get; set; } = true;
+
+        [JsonPropertyName("enableBatching")]
+        public bool EnableBatching { get; set; } = true;
     }
-    
-    public class EnhancedGraphicsSettingsWrapper
+
+    public class Graphics3DSettings
     {
-        [JsonPropertyName("basic")]
-        public BasicGraphicsSettings Basic { get; set; } = new();
-        
-        [JsonPropertyName("enhanced")]
-        public GraphicsSettings Enhanced { get; set; } = new();
+        [JsonPropertyName("enableAntiAliasing")]
+        public bool EnableAntiAliasing { get; set; } = true;
+
+        [JsonPropertyName("shadowQuality")]
+        public string ShadowQuality { get; set; } = "medium";
+
+        [JsonPropertyName("textureQuality")]
+        public string TextureQuality { get; set; } = "high";
+
+        [JsonPropertyName("camera")]
+        public CameraSettings Camera { get; set; } = new();
+
+        [JsonPropertyName("performance")]
+        public PerformanceSettings Performance { get; set; } = new();
+    }
+
+    public class CameraSettings
+    {
+        [JsonPropertyName("fov")]
+        public float FOV { get; set; } = 75.0f;
+
+        [JsonPropertyName("nearPlane")]
+        public float NearPlane { get; set; } = 0.1f;
+
+        [JsonPropertyName("farPlane")]
+        public float FarPlane { get; set; } = 1000.0f;
+
+        [JsonPropertyName("smoothingSpeed")]
+        public float SmoothingSpeed { get; set; } = 5.0f;
+
+        [JsonPropertyName("enableShake")]
+        public bool EnableShake { get; set; } = true;
+
+        [JsonPropertyName("defaultMode")]
+        public string DefaultMode { get; set; } = "followPlayer";
+    }
+
+    public class PerformanceSettings
+    {
+        [JsonPropertyName("targetFrameRate")]
+        public float TargetFrameRate { get; set; } = 60.0f;
+
+        [JsonPropertyName("adaptiveQuality")]
+        public bool AdaptiveQuality { get; set; } = true;
+
+        [JsonPropertyName("memoryLimit")]
+        public int MemoryLimit { get; set; } = 67108864;
+
+        [JsonPropertyName("autoAdjustLOD")]
+        public bool AutoAdjustLOD { get; set; } = true;
     }
 
     public class AudioSettings
@@ -195,7 +259,7 @@ namespace Asteroids
         /// <summary>
         /// Update specific graphics settings
         /// </summary>
-        public void UpdateGraphicsSettings(EnhancedGraphicsSettingsWrapper graphics)
+        public void UpdateGraphicsSettings(BasicGraphicsSettings graphics)
         {
             if (graphics == null) return;
 
@@ -207,17 +271,32 @@ namespace Asteroids
         }
         
         /// <summary>
-        /// Update enhanced graphics settings
+        /// Get the current default render mode
         /// </summary>
-        public void UpdateEnhancedGraphicsSettings(GraphicsSettings enhancedGraphics)
+        public string GetDefaultRenderMode()
         {
-            if (enhancedGraphics == null) return;
+            return _currentSettings.Graphics.DefaultRenderMode ?? "auto";
+        }
 
-            _currentSettings.Graphics.Enhanced = enhancedGraphics;
+        /// <summary>
+        /// Update the default render mode and save settings
+        /// </summary>
+        public void SetDefaultRenderMode(string renderMode)
+        {
+            if (string.IsNullOrEmpty(renderMode)) return;
+
+            var validModes = new[] { "auto", "2D", "3D" };
+            if (!validModes.Contains(renderMode.ToLowerInvariant()))
+            {
+                renderMode = "auto";
+            }
+
+            _currentSettings.Graphics.DefaultRenderMode = renderMode.ToLowerInvariant();
             ValidateSettings();
             SaveSettings();
             
             SettingsChanged?.Invoke(this, _currentSettings);
+            ErrorManager.LogInfo($"Default render mode updated to: {renderMode}");
         }
 
         /// <summary>

@@ -72,6 +72,22 @@ namespace Asteroids
         }
 
         /// <summary>
+        /// Create a renderer based on string configuration
+        /// </summary>
+        /// <param name="renderModeString">Render mode as string ("2D", "3D", "auto")</param>
+        /// <returns>Initialized renderer instance</returns>
+        public static IRenderer CreateRenderer(string renderModeString)
+        {
+            if (string.IsNullOrEmpty(renderModeString))
+            {
+                return CreateRenderer(RenderMode.Auto);
+            }
+
+            RenderMode mode = ParseRenderModeString(renderModeString);
+            return CreateRenderer(mode);
+        }
+
+        /// <summary>
         /// Create a renderer based on graphics settings
         /// </summary>
         /// <param name="graphicsSettings">Current graphics configuration</param>
@@ -86,8 +102,27 @@ namespace Asteroids
             // Determine preferred mode based on settings
             RenderMode mode = RenderMode.Auto;
             
-            // For now, default to 2D since 3D integration is still being developed
-            return CreateRenderer(RenderMode.Force2D);
+            // Default to 3D mode with 2D fallback for production
+            return CreateRenderer(RenderMode.Prefer3D);
+        }
+
+        /// <summary>
+        /// Parse render mode string to enum
+        /// </summary>
+        /// <param name="renderModeString">String representation of render mode</param>
+        /// <returns>Corresponding RenderMode enum</returns>
+        private static RenderMode ParseRenderModeString(string renderModeString)
+        {
+            return renderModeString.ToLowerInvariant() switch
+            {
+                "2d" => RenderMode.Force2D,
+                "3d" => RenderMode.Prefer3D,
+                "auto" => RenderMode.Auto,
+                "force2d" => RenderMode.Force2D,
+                "force3d" => RenderMode.Force3D,
+                "prefer3d" => RenderMode.Prefer3D,
+                _ => RenderMode.Auto
+            };
         }
 
         /// <summary>

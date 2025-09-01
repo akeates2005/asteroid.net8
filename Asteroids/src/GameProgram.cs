@@ -29,6 +29,8 @@ namespace Asteroids
 
         // Enhanced Rendering System
         private IRenderer? _renderer;
+        private IRenderer? _renderer2D;
+        private IRenderer? _renderer3D;
         private LODManager? _lodManager;
         private ProceduralAsteroidGenerator? _asteroidGenerator;
 
@@ -97,14 +99,33 @@ namespace Asteroids
             // Initialize procedural asteroid generator
             _asteroidGenerator = new ProceduralAsteroidGenerator();
 
-            // Initialize renderer using factory pattern
-            _renderer = RendererFactory.CreateRenderer(_graphicsSettings);
+            // Initialize both 2D and 3D renderers for seamless switching
+            _renderer2D = new Renderer2D();
+            _renderer3D = new Renderer3D();
             
-            if (!_renderer.Initialize())
+            if (!_renderer2D.Initialize())
             {
-                ErrorManager.LogError("Failed to initialize renderer");
-                throw new InvalidOperationException("Renderer initialization failed");
+                ErrorManager.LogError("Failed to initialize 2D renderer");
+                throw new InvalidOperationException("2D Renderer initialization failed");
             }
+            
+            if (!_renderer3D.Initialize())
+            {
+                ErrorManager.LogWarning("Failed to initialize 3D renderer - 3D mode will be unavailable");
+            }
+            
+            // Set initial renderer based on user settings
+            string defaultRenderMode = _settingsManager?.GetDefaultRenderMode() ?? "auto";
+            _renderer = SelectRendererFromMode(defaultRenderMode);
+            
+            // Fallback if no appropriate renderer could be selected
+            if (_renderer == null)
+            {
+                _renderer = (_renderer3D?.Initialize() == true) ? _renderer3D : _renderer2D;
+            }
+            
+            // Log the selected renderer mode
+            ErrorManager.LogInfo($"Initialized with render mode: {defaultRenderMode}, Using: {(_renderer == _renderer3D ? "3D" : "2D")} renderer");
 
             // Initialize object pools with graphics settings scaling
             _bulletPool = new BulletPool(GameConstants.MAX_BULLETS);
@@ -177,10 +198,16 @@ namespace Asteroids
                 _gamePaused = !_gamePaused;
             }
 
-            // Handle 3D toggle
+            // Handle 3D toggle with proper renderer switching
             if (Raylib.IsKeyPressed(KeyboardKey.F3))
             {
-                _renderer?.Toggle3DMode(); // Clean interface usage
+                SwitchRenderingMode();
+            }
+
+            // Handle render mode cycling when paused
+            if (_gamePaused && Raylib.IsKeyPressed(KeyboardKey.R))
+            {
+                CycleRenderMode();
             }
 
             // Handle camera controls in 3D mode
@@ -661,7 +688,7 @@ namespace Asteroids
             // 3D rendering is handled by the IRenderer abstraction - no legacy code needed
 
             // Draw grid via IRenderer abstraction
-            if (_settingsManager?.Current.Graphics.Basic.ShowGrid == true)
+            if (_settingsManager?.Current.Graphics.ShowGrid == true)
             {
                 _renderer?.RenderGrid(true, DynamicTheme.GetGridColor());
             }
@@ -809,8 +836,21 @@ namespace Asteroids
 
             if (_gamePaused)
             {
-                Raylib.DrawText("PAUSED", GameConstants.SCREEN_WIDTH / 2 - 60, GameConstants.SCREEN_HEIGHT / 2 - 20, 
+                Raylib.DrawText("PAUSED", GameConstants.SCREEN_WIDTH / 2 - 60, GameConstants.SCREEN_HEIGHT / 2 - 60, 
                     GameConstants.FONT_SIZE_LARGE, DynamicTheme.GetTextColor());
+                    
+                // Show current render mode
+                string currentMode = _settingsManager?.GetDefaultRenderMode() ?? "auto";
+                string modeText = $"Render Mode: {currentMode.ToUpperInvariant()} ({(_renderer?.Is3DModeActive == true ? "3D Active" : "2D Active")})";
+                int modeTextWidth = Raylib.MeasureText(modeText, GameConstants.FONT_SIZE_MEDIUM);
+                Raylib.DrawText(modeText, GameConstants.SCREEN_WIDTH / 2 - modeTextWidth / 2, 
+                    GameConstants.SCREEN_HEIGHT / 2 - 20, GameConstants.FONT_SIZE_MEDIUM, DynamicTheme.GetTextColor());
+                
+                // Show controls
+                string controlsText = "R: Cycle Render Mode | F3: Toggle 2D/3D | P: Resume";
+                int controlsWidth = Raylib.MeasureText(controlsText, GameConstants.FONT_SIZE_SMALL);
+                Raylib.DrawText(controlsText, GameConstants.SCREEN_WIDTH / 2 - controlsWidth / 2, 
+                    GameConstants.SCREEN_HEIGHT / 2 + 20, GameConstants.FONT_SIZE_SMALL, DynamicTheme.GetTextColor());
             }
 
             // End frame rendering via IRenderer
@@ -870,6 +910,94 @@ namespace Asteroids
             }
 
             Raylib.EndDrawing();
+        }
+
+        /// <summary>
+        /// Switch between 2D and 3D rendering modes with proper renderer switching
+        /// </summary>
+        private void SwitchRenderingMode()
+        {
+            try
+            {
+                string newMode = "auto";
+                
+                if (_renderer == _renderer2D && _renderer3D?.Initialize() == true)
+                {
+                    // Switch to 3D mode
+                    _renderer = _renderer3D;
+                    newMode = "3D";
+                    ErrorManager.LogInfo("Switched to 3D rendering mode");
+                }
+                else if (_renderer == _renderer3D && _renderer2D != null)
+                {
+                    // Switch to 2D mode
+                    _renderer = _renderer2D;
+                    newMode = "2D";
+                    ErrorManager.LogInfo("Switched to 2D rendering mode");
+                }
+                else
+                {
+                    ErrorManager.LogWarning("Cannot switch rendering mode - renderer not available");
+                    return;
+                }
+                
+                // Save the new preference to settings
+                _settingsManager?.SetDefaultRenderMode(newMode);
+            }
+            catch (Exception ex)
+            {
+                ErrorManager.LogError("Failed to switch rendering mode", ex);
+            }
+        }
+
+        /// <summary>
+        /// Select the appropriate renderer instance based on mode string
+        /// </summary>
+        private IRenderer? SelectRendererFromMode(string mode)
+        {
+            return mode.ToLowerInvariant() switch
+            {
+                "2d" => _renderer2D,
+                "3d" => _renderer3D != null ? _renderer3D : _renderer2D,
+                "auto" => _renderer3D != null ? _renderer3D : _renderer2D,
+                _ => _renderer3D != null ? _renderer3D : _renderer2D
+            };
+        }
+
+        /// <summary>
+        /// Cycle through available render modes: Auto -> 2D -> 3D -> Auto
+        /// </summary>
+        private void CycleRenderMode()
+        {
+            try
+            {
+                string currentMode = _settingsManager?.GetDefaultRenderMode() ?? "auto";
+                string nextMode = currentMode.ToLowerInvariant() switch
+                {
+                    "auto" => "2d",
+                    "2d" => "3d",
+                    "3d" => "auto",
+                    _ => "auto"
+                };
+
+                // Update settings and switch to the new mode
+                _settingsManager?.SetDefaultRenderMode(nextMode);
+                
+                // Apply the mode change immediately using existing renderer instances
+                _renderer = SelectRendererFromMode(nextMode);
+                
+                // Fallback if no appropriate renderer could be selected
+                if (_renderer == null)
+                {
+                    _renderer = (_renderer3D?.Initialize() == true) ? _renderer3D : _renderer2D;
+                }
+
+                ErrorManager.LogInfo($"Cycled render mode to: {nextMode.ToUpperInvariant()}");
+            }
+            catch (Exception ex)
+            {
+                ErrorManager.LogError("Failed to cycle render mode", ex);
+            }
         }
 
         private void ResetGame()
@@ -994,10 +1122,11 @@ namespace Asteroids
                 if (_settingsManager != null) _settingsManager.SaveSettings();
                 
                 // Cleanup enhanced rendering system
-                _renderer?.Cleanup();
+                _renderer2D?.Cleanup();
+                _renderer3D?.Cleanup();
                 _asteroidGenerator?.ClearCache();
                 
-                // 3D rendering cleanup is handled by the IRenderer abstraction
+                // Both 2D and 3D renderers are now cleaned up individually
                 
                 ErrorManager.CleanupOldLogs();
                 ErrorManager.LogInfo("Game cleanup completed");
