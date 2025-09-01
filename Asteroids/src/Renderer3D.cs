@@ -14,12 +14,16 @@ namespace Asteroids
         private bool _isInitialized;
         private Camera3D _camera;
         private ProceduralAsteroidGenerator? _asteroidGenerator;
+        private Camera3DManager? _camera3DManager;
+        private ProceduralMeshSystem? _meshSystem;
 
         public Renderer3D()
         {
             _stats = new RenderStats { RenderMode = "3D" };
             _isInitialized = false;
             _asteroidGenerator = new ProceduralAsteroidGenerator();
+            _camera3DManager = new Camera3DManager();
+            _meshSystem = new ProceduralMeshSystem();
             
             // Initialize 3D camera
             _camera = new Camera3D
@@ -36,12 +40,23 @@ namespace Asteroids
         {
             try
             {
-                // Modern 3D renderer initialization - no legacy integration needed
-                _isInitialized = true; // 3D renderer is always available in modern implementation
+                // Initialize camera management system
+                if (_camera3DManager != null)
+                {
+                    _camera3DManager.Initialize();
+                }
+
+                // Initialize mesh system
+                if (_meshSystem != null)
+                {
+                    _meshSystem.Initialize();
+                }
+
+                _isInitialized = true;
                 
                 if (_isInitialized)
                 {
-                    ErrorManager.LogInfo("3D Renderer initialized successfully");
+                    ErrorManager.LogInfo("3D Renderer initialized successfully with advanced camera system");
                 }
                 else
                 {
@@ -64,6 +79,17 @@ namespace Asteroids
             _stats.RenderedItems = 0;
             _stats.CulledItems = 0;
             _stats.FrameTime = Raylib.GetFrameTime();
+
+            // Update camera system if available
+            if (_camera3DManager != null && _camera3DManager.IsInitialized)
+            {
+                // Update camera with mock game state
+                var gameState = new { Player = new { Position = Vector2.Zero } };
+                _camera3DManager.Update(gameState, _stats.FrameTime);
+                
+                // Use camera from manager
+                _camera = _camera3DManager.GetRaylibCamera();
+            }
 
             // Begin 3D mode with camera
             Raylib.BeginMode3D(_camera);
@@ -400,9 +426,42 @@ namespace Asteroids
         {
             if (!_isInitialized) return;
 
-            // Modern 3D camera input handling
-            // Camera movement is handled internally by the 3D renderer
-            // Additional camera controls can be implemented here as needed
+            // Handle camera mode switching
+            if (Raylib.IsKeyPressed(KeyboardKey.C))
+            {
+                if (_camera3DManager != null)
+                {
+                    // Cycle through camera modes
+                    var currentMode = _camera3DManager.CurrentMode;
+                    var nextMode = currentMode switch
+                    {
+                        Camera3DManager.CameraMode.FollowPlayer => Camera3DManager.CameraMode.Orbital,
+                        Camera3DManager.CameraMode.Orbital => Camera3DManager.CameraMode.FreeRoam,
+                        Camera3DManager.CameraMode.FreeRoam => Camera3DManager.CameraMode.Cinematic,
+                        Camera3DManager.CameraMode.Cinematic => Camera3DManager.CameraMode.FollowPlayer,
+                        _ => Camera3DManager.CameraMode.FollowPlayer
+                    };
+                    
+                    _camera3DManager.SwitchMode(nextMode, 1.0f);
+                }
+            }
+
+            // Handle free roam camera movement
+            if (_camera3DManager != null && _camera3DManager.CurrentMode == Camera3DManager.CameraMode.FreeRoam)
+            {
+                if (Raylib.IsKeyDown(KeyboardKey.W))
+                    _camera3DManager.HandleInput(Camera3DManager.CameraInput.MoveForward);
+                if (Raylib.IsKeyDown(KeyboardKey.S))
+                    _camera3DManager.HandleInput(Camera3DManager.CameraInput.MoveBackward);
+                if (Raylib.IsKeyDown(KeyboardKey.A))
+                    _camera3DManager.HandleInput(Camera3DManager.CameraInput.MoveLeft);
+                if (Raylib.IsKeyDown(KeyboardKey.D))
+                    _camera3DManager.HandleInput(Camera3DManager.CameraInput.MoveRight);
+                if (Raylib.IsKeyDown(KeyboardKey.Q))
+                    _camera3DManager.HandleInput(Camera3DManager.CameraInput.MoveDown);
+                if (Raylib.IsKeyDown(KeyboardKey.E))
+                    _camera3DManager.HandleInput(Camera3DManager.CameraInput.MoveUp);
+            }
         }
 
         public CameraState GetCameraState()
@@ -411,23 +470,43 @@ namespace Asteroids
             {
                 return new CameraState
                 {
-                    Position = Vector3.Zero,
-                    Target = Vector3.Zero,
-                    Up = Vector3.UnitY,
-                    Fovy = 0f,
-                    Projection = CameraProjection.Perspective,
-                    IsActive = false
+                    Position2D = Vector2.Zero,
+                    Position3D = Vector3.Zero,
+                    Target3D = Vector3.Zero,
+                    Up3D = Vector3.UnitY,
+                    FOV = 0f,
+                    Is3DMode = false,
+                    Mode = "Disabled",
+                    IsTransitioning = false
+                };
+            }
+
+            if (_camera3DManager != null && _camera3DManager.IsInitialized)
+            {
+                var state3D = _camera3DManager.GetCurrentState();
+                return new CameraState
+                {
+                    Position2D = new Vector2(state3D.Position.X, state3D.Position.Z),
+                    Position3D = state3D.Position,
+                    Target3D = state3D.Target,
+                    Up3D = state3D.Up,
+                    FOV = state3D.FOV,
+                    Is3DMode = true,
+                    Mode = state3D.Mode.ToString(),
+                    IsTransitioning = state3D.IsTransitioning
                 };
             }
 
             return new CameraState
             {
-                Position = _camera.Position,
-                Target = _camera.Target,
-                Up = _camera.Up,
-                Fovy = _camera.FovY,
-                Projection = _camera.Projection,
-                IsActive = true
+                Position2D = new Vector2(_camera.Position.X, _camera.Position.Z),
+                Position3D = _camera.Position,
+                Target3D = _camera.Target,
+                Up3D = _camera.Up,
+                FOV = _camera.FovY,
+                Is3DMode = true,
+                Mode = "Basic",
+                IsTransitioning = false
             };
         }
         
@@ -436,6 +515,8 @@ namespace Asteroids
             if (_isInitialized)
             {
                 _asteroidGenerator?.ClearCache();
+                _camera3DManager?.Cleanup();
+                _meshSystem?.Cleanup();
                 ErrorManager.LogInfo("3D Renderer cleanup completed");
             }
         }

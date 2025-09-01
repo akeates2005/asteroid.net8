@@ -267,12 +267,14 @@ namespace Asteroids
             // Return inactive camera state for 2D mode
             return new CameraState
             {
-                Position = Vector3.Zero,
-                Target = Vector3.Zero,
-                Up = Vector3.UnitY,
-                Fovy = 0f,
-                Projection = CameraProjection.Perspective,
-                IsActive = false
+                Position2D = Vector2.Zero,
+                Position3D = Vector3.Zero,
+                Target3D = Vector3.Zero,
+                Up3D = Vector3.UnitY,
+                FOV = 0f,
+                Is3DMode = false,
+                Mode = "2D",
+                IsTransitioning = false
             };
         }
 

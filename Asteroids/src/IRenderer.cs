@@ -139,18 +139,6 @@ namespace Asteroids
         void Cleanup();
     }
 
-    /// <summary>
-    /// Camera state information for 3D rendering
-    /// </summary>
-    public struct CameraState
-    {
-        public Vector3 Position;
-        public Vector3 Target;
-        public Vector3 Up;
-        public float Fovy;
-        public CameraProjection Projection;
-        public bool IsActive;
-    }
 
     /// <summary>
     /// Rendering statistics for performance monitoring
@@ -162,5 +150,20 @@ namespace Asteroids
         public int CulledItems { get; set; }
         public float FrameTime { get; set; }
         public string RenderMode { get; set; }
+    }
+
+    /// <summary>
+    /// Camera state information for both 2D and 3D modes
+    /// </summary>
+    public struct CameraState
+    {
+        public Vector2 Position2D { get; set; }
+        public Vector3 Position3D { get; set; }
+        public Vector3 Target3D { get; set; }
+        public Vector3 Up3D { get; set; }
+        public float FOV { get; set; }
+        public bool Is3DMode { get; set; }
+        public string Mode { get; set; }
+        public bool IsTransitioning { get; set; }
     }
 }

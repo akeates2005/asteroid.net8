@@ -23,7 +23,7 @@ namespace Asteroids
         // Configuration
         public static bool EnableFileLogging { get; set; } = true;
         public static bool EnableConsoleLogging { get; set; } = true;
-        public static LogLevel MinimumLogLevel { get; set; } = LogLevel.Warning;
+        public static LogLevel MinimumLogLevel { get; set; } = LogLevel.Debug;
         public static int MaxLogFileSize { get; set; } = 10 * 1024 * 1024; // 10MB
         public static int MaxLogEntries { get; set; } = 1000;
 
